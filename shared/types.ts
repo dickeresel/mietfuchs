@@ -18,6 +18,9 @@ export type UnitUsage = 'vermietet' | 'eigen' | 'ausgenommen'
 // nur über shared/unitUsage.ts.
 export type UsageChange = { from: string; usage: UnitUsage }
 
+// Ein Flächenwechsel einer Einheit (gewerbliche Abrechnung): ab `from` ('JJJJ-MM-TT') gilt `areaM2`.
+export type AreaChange = { from: string; areaM2: number }
+
 // Die Art eines Objekts (#92): Mehrfamilienhaus, vermietete Eigentumswohnung, Einfamilienhaus,
 // Zweifamilienhaus (#180, Heizung PR 4; nur Beschreibung, die Ausnahme des § 2 HeizkostenV hängt an
 // den Wohnungen), Sonstiges (etwa ein Garagenhof).
@@ -107,6 +110,11 @@ export type Unit = {
   noConnection?: MeterType[]
   // Nutzungswechsel nach Datum (#259); ohne Einträge gilt die Angabe oben für immer.
   usageChanges?: UsageChange[]
+  // Flächenwechsel nach Datum (gewerbliche Abrechnung, Erhöhung oder Minderung der Mietfläche im Jahr): ab `from`
+  // ('JJJJ-MM-TT') gilt `areaM2`. Die erste Stufe ist `areaM2` oben, sie gilt vor dem ersten Wechsel. Gelesen wird die Staffel
+  // beim Flächenschlüssel (je Abschnitt verteilt); andere Stellen (Druck, Steuer, CO₂, Mieterhöhung) lesen `areaM2`.
+  // Nicht an Zimmern einer Wohnung und nicht an einer Wohnung mit Zimmern.
+  areaChanges?: AreaChange[]
   // Erweiterte Stammdaten (optional, ohne Einfluss auf die Berechnung)
   rooms?: number // Zimmerzahl
   // Die Wohnung, in der diese Einheit als Zimmer liegt (#573); fehlend oder null: keine. Eine Einheit, auf die

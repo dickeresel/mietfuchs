@@ -37,7 +37,7 @@ import { selfActive, selfFromOf } from '../heating.ts'
 import { captureOf, coversPeriod, hotWaterOf } from '../hca.ts'
 import { and, count, desc, eq, inArray, isNotNull, ne, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
-import type { BillingPeriod, CostItem, ExternalBasis, FederalState, HeatingPlant, HeatingPrepaymentOverride, InterimGapStatus, LocalRentEntry, Meter, MeterType, Payment, PeriodKey, PeriodRules, PersonEntry, PrepaymentEntry, Property, Reading, RentEntry, SplitPreviewPart, SpreadYears, Tenancy, Unit, UnitDependents, UsageChange, UtilityKind, UtilityPrepayment, RentChangeReason, RentIndexValue, RentKind } from '../../../shared/types.ts'
+import type { BillingPeriod, CostItem, ExternalBasis, FederalState, HeatingPlant, HeatingPrepaymentOverride, InterimGapStatus, LocalRentEntry, Meter, MeterType, Payment, PeriodKey, PeriodRules, PersonEntry, PrepaymentEntry, Property, Reading, RentEntry, SplitPreviewPart, SpreadYears, Tenancy, Unit, UnitDependents, UsageChange, AreaChange, UtilityKind, UtilityPrepayment, RentChangeReason, RentIndexValue, RentKind } from '../../../shared/types.ts'
 import { usageChangesOf } from '../../../shared/unitUsage.ts'
 import { hasKnownUnits, unitKey, unitLabel, unitProblem } from '../../../shared/meterUnits.ts'
 import { CALENDAR_RULES, calendarPeriod, paymentYear, formatDayRange, isCalendarRules, parsePeriodKey, periodContaining, periodLabel, periodMonths, periodOfKey, periodsBetween, rulesOf, spansTwoYears, startYearOf } from '../../../shared/period.ts'
@@ -72,7 +72,7 @@ import {
   aiSlots, assessmentLines, assessments, baseRents, co2Refunds, co2Statements, depositEntries, co2TenantReliefs, heatingPeriods, closedHeatingSettlementHistory, closedHeatingSettlements, closedSettlementHistory, closedSettlements, COST_KEYS, COST_MODELS, HEATING_MODELS, RENT_CHANGE_REASONS, RENT_DUE_RULES, RENT_KINDS, SELF_SUPPLY_KINDS, costItemAmounts, costItemContract, costItemParticipants, costItemSelfAmounts, costItemShares, costItems, costSources, costTypes, DEPOSIT_FORMS, DEPOSIT_STATUS, PAYMENT_KINDS, EXTERNAL_MEASURES,
   HCA_SCALES, HEATING_PARTS, OPERATING_POWER, HEATING_ROLES, HEATING_TARGETS, INTERIM_GAP_STATUS, interimReadingGaps, heatingPeriodChanges, heatingPlants, heatingPlantUnits, heatingSelfSpans, heatingPrepaymentOverrides, heatingPrepayments, heatingSeparateSpans, heatingServiceValues, heatingEstimates,
   flatRates, tenancyDirectCharges, tenancyUtilityPrepayments, UTILITY_KINDS, METER_TYPES, UNIT_USAGES, meters, payments, periodChanges, personHistory, prepaymentOverrides, prepayments, properties, PROPERTY_KINDS,
-  readings, rentIncreases, settings, tenancies, unitLocalRents, unitNoConnection, unitUsageChanges, units, fuelCarryFrozen, fuelDeliveries,
+  readings, rentIncreases, settings, tenancies, unitLocalRents, unitNoConnection, unitUsageChanges, unitAreaChanges, units, fuelCarryFrozen, fuelDeliveries,
 } from './schema.ts'
 import { linkedTargetRefusal } from './bankGuard.ts'
 import { RENT_DATA_TEXTS, RENT_DUE_TEXTS } from './errors.ts'
@@ -541,6 +541,23 @@ function readUsageChanges(v: unknown): UsageChange[] | undefined {
   return changes
 }
 
+// Flächenwechsel aus einem Rumpf (gewerbliche Abrechnung): je Zeile ein Tag und eine Fläche ab 0; am selben Tag gilt der
+// letzte, sortiert nach Tag. Unlesbares ist ein Satz (400), nicht still verworfen. `null` oder leer leert.
+const AREA_CHANGES_TEXT = 'Ein Flächenwechsel braucht einen Tag (JJJJ-MM-TT) und die Fläche ab diesem Tag in m² (0 oder mehr).'
+function readAreaChanges(v: unknown): AreaChange[] | undefined {
+  if (v === null || v === undefined) return undefined
+  if (!Array.isArray(v)) throw new HeatingError(400, AREA_CHANGES_TEXT)
+  const byDay = new Map<string, number>()
+  for (const x of v) {
+    const from = raw(x, 'from')
+    const area = raw(x, 'areaM2')
+    if (typeof from !== 'string' || !isCalendarDay(from) || typeof area !== 'number' || !Number.isFinite(area) || area < 0) throw new HeatingError(400, AREA_CHANGES_TEXT)
+    byDay.set(from, area)
+  }
+  const out = [...byDay].map(([from, areaM2]) => ({ from, areaM2 })).sort((a, b) => compareText(a.from, b.from))
+  return out.length > 0 ? out : undefined
+}
+
 function mergeUnit(current: Unit, body: unknown): Unit {
   return {
     id: current.id,
@@ -557,6 +574,8 @@ function mergeUnit(current: Unit, body: unknown): Unit {
     // Nutzungswechsel (#259): gültige Tage und bekannte Nutzungen, am selben Tag der letzte, nach Datum
     // (`usageChangesOf`, dieselbe Regel wie beim Rechnen). Krumm wird geradegerückt, nicht abgelehnt.
     usageChanges: merged(body, 'usageChanges', current.usageChanges, readUsageChanges),
+    // Flächenwechsel (gewerbliche Abrechnung); ob sie an dieser Einheit erlaubt sind, prüft `guardUnit` (keine Zimmer).
+    areaChanges: merged(body, 'areaChanges', current.areaChanges, readAreaChanges),
     rooms: merged(body, 'rooms', current.rooms, asOptionalNumber),
     // Die Wohnung, in der die Einheit als Zimmer liegt (#573); `null` oder leer löst die Verknüpfung.
     parentUnitId: merged(body, 'parentUnitId', current.parentUnitId, (v) => (typeof v === 'string' && v !== '' ? v : undefined)),
@@ -2253,6 +2272,12 @@ async function guardMovePeriods(db: Executor, after: Unit, tenancyIds: readonly 
 async function guardUnit(db: Executor, before: Unit | null, after: Unit): Promise<void> {
   // Ein Satz statt der Prüfbedingung der Datenbank (`units_area_not_negative`).
   if (after.areaM2 < 0) throw new HeatingError(400, 'Die Wohnfläche ist negativ. Bitte tragen Sie 0 oder mehr Quadratmeter ein.')
+  // Flächenwechsel (gewerbliche Abrechnung) nicht an Zimmern und nicht an einer Wohnung mit Zimmern: Deren wirksame Fläche
+  // rechnet die Sicht `roomView` aus den Flächen von Wohnung und Zimmern, eine Staffel kennt sie nicht.
+  if ((after.areaChanges?.length ?? 0) > 0) {
+    const hasRooms = (await db.select({ id: units.id }).from(units).where(eq(units.parentUnitId, after.id)).limit(1)).length > 0
+    if (after.parentUnitId || hasRooms) throw new HeatingError(400, 'Flächenwechsel gibt es nicht für Zimmer einer Wohnung und nicht für eine Wohnung mit Zimmern. Legen Sie dafür eine neue Einheit an.')
+  }
   await guardRooms(db, before, after)
   // „Kein Anschluss: Wärme“ ändert, welche Anlage ohne Liste die Wohnung versorgt (#117, Heizung PR 5).
   if (before && before.propertyId === after.propertyId) {
@@ -3102,6 +3127,9 @@ async function writeUnitChildren(db: Executor, u: Unit): Promise<void> {
   await db.delete(unitLocalRents).where(eq(unitLocalRents.unitId, u.id))
   const rents = u.localRents ?? []
   if (rents.length > 0) await db.insert(unitLocalRents).values(rents.map((e) => ({ unitId: u.id, from: e.from, monthlyCents: e.monthlyCents, source: e.source, sourceDate: e.sourceDate })))
+  await db.delete(unitAreaChanges).where(eq(unitAreaChanges.unitId, u.id))
+  const flaechen = u.areaChanges ?? []
+  if (flaechen.length > 0) await db.insert(unitAreaChanges).values(flaechen.map((c) => ({ unitId: u.id, from: c.from, areaM2: c.areaM2 })))
   await db.delete(unitUsageChanges).where(eq(unitUsageChanges.unitId, u.id))
   const changes = u.usageChanges ?? []
   if (changes.length > 0) await db.insert(unitUsageChanges).values(changes.map((c) => ({ unitId: u.id, from: c.from, usage: c.usage })))

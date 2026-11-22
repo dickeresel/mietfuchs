@@ -785,6 +785,13 @@
       "when": 1795367996872,
       "tag": "0111_gewerblich_bedingung",
       "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "6",
+      "when": 1795369076379,
+      "tag": "0112_flaechenstaffel",
+      "breakpoints": true
     }
   ]
 }

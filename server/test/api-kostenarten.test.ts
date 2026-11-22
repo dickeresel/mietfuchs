@@ -194,3 +194,32 @@ test('Gewerbe: Kennzeichen am Mietverhältnis hin und zurück, ein anderer Wert 
     s.stop()
   }
 })
+
+// ---------- Flächenwechsel im Jahr ----------
+
+test('Flächenwechsel: an der Einheit hin und zurück, Unlesbares 400, nicht an Zimmern; die Abrechnung teilt je Abschnitt', async () => {
+  const s = await startServer()
+  try {
+    const { unit } = await stock(s)
+    const put = (body: unknown) => send(s, `/api/units/${unit.id}`, 'PUT', body)
+    for (const falsch of [[{ from: '2025-13-01', areaM2: 120 }], [{ from: '2025-07-01', areaM2: -1 }], 'mehr']) {
+      assert.equal((await put({ areaChanges: falsch })).status, 400, JSON.stringify(falsch))
+    }
+    assert.equal((await put({ areaChanges: [{ from: '2025-07-01', areaM2: 200 }] })).status, 200)
+    const [gelesen] = await s.api<{ areaChanges?: unknown }[]>('/api/units')
+    assert.deepEqual(gelesen?.areaChanges, [{ from: '2025-07-01', areaM2: 200 }])
+    await s.api('/api/units', { method: 'POST', body: JSON.stringify({ name: 'Lager', areaM2: 100, participates: true }) })
+    await send(s, '/api/costItems', 'POST', { period: '2025-01', category: 'Gebäudereinigung', description: 'Reinigung', amountCents: 365000, key: 'area' })
+    const st = (await s.api<Settlement>('/api/settlement/2025')).statements[0] ?? assert.fail('keine Abrechnung')
+    // Halle 100 m² bis 30.06., dann 200 m²; Lager 100 m² ohne Mietverhältnis.
+    assert.equal(st.totalShareCents, 90500 + 122667)
+    // Zimmer einer Wohnung: abgelehnt.
+    const flat = await s.api<Unit>('/api/units', { method: 'POST', body: JSON.stringify({ name: 'WG', areaM2: 80, participates: false }) })
+    const room = await s.api<Unit>('/api/units', { method: 'POST', body: JSON.stringify({ name: 'Zimmer 1', areaM2: 15, participates: true, parentUnitId: flat.id }) })
+    const r = await send(s, `/api/units/${room.id}`, 'PUT', { areaChanges: [{ from: '2025-07-01', areaM2: 20 }] })
+    assert.equal(r.status, 400)
+    assert.match(await errorFrom(r), /nicht für Zimmer/)
+  } finally {
+    s.stop()
+  }
+})

@@ -20,6 +20,8 @@ export type UnitForm = {
   noConnection: MeterType[]
   // Nutzungswechsel (#259): ab Tag ('JJJJ-MM-TT') gilt die Nutzung; `usage` oben gilt bis zum ersten.
   usageChanges: { from: string; usage: UnitUsage }[]
+  // Flächenwechsel (gewerbliche Abrechnung): ab Tag gilt die Fläche; `areaM2` oben gilt bis zum ersten.
+  areaChanges: { from: string; area: string }[]
   rooms: string
   // Die Wohnung, in der diese Einheit als Zimmer liegt (#573); leer heißt keine.
   parentUnitId: string
@@ -30,7 +32,7 @@ export type UnitForm = {
 }
 
 export const EMPTY_UNIT_FORM: UnitForm = {
-  name: '', areaM2: '', usage: 'vermietet', selfPersons: '', mea: '', noConnection: [], usageChanges: [], rooms: '', parentUnitId: '', floor: '', notes: '', propertyId: '',
+  name: '', areaM2: '', usage: 'vermietet', selfPersons: '', mea: '', noConnection: [], usageChanges: [], areaChanges: [], rooms: '', parentUnitId: '', floor: '', notes: '', propertyId: '',
 }
 
 const numStr = (n: number | undefined | null) => (n != null ? String(n).replace('.', ',') : '')
@@ -45,6 +47,7 @@ export function unitToForm(u: Unit): UnitForm {
     mea: numStr(u.mea),
     noConnection: u.noConnection ?? [],
     usageChanges: (u.usageChanges ?? []).map((c) => ({ from: c.from, usage: c.usage })),
+    areaChanges: (u.areaChanges ?? []).map((c) => ({ from: c.from, area: String(c.areaM2).replace('.', ',') })),
     rooms: numStr(u.rooms),
     parentUnitId: u.parentUnitId ?? '',
     floor: u.floor ?? '',
@@ -54,7 +57,9 @@ export function unitToForm(u: Unit): UnitForm {
 }
 
 // Die Felder des Wohnungsformulars mit Meldung (#346, Schritt 3).
-export type UnitField = 'name' | 'areaM2' | 'rooms' | 'selfPersons' | 'mea' | UsageChangeField
+export type UnitField = 'name' | 'areaM2' | 'rooms' | 'selfPersons' | 'mea' | UsageChangeField | AreaChangeField
+export type AreaChangeField = `areaChange.${number}`
+export const areaChangeField = (row: number): AreaChangeField => `areaChange.${row}`
 // Das Datum einer Zeile der Nutzungswechsel (#259).
 export type UsageChangeField = `usageChange.${number}`
 export const usageChangeField = (row: number): UsageChangeField => `usageChange.${row}`
@@ -99,6 +104,19 @@ export function buildUnitBody(form: UnitForm, savedPropertyId?: string): UnitBui
     else if (seen.has(c.from)) problems.push({ field: usageChangeField(i), short: 'Tag doppelt', text: `${where}: Für diesen Tag steht schon ein Wechsel; je Tag gilt nur eine Nutzung.` })
     seen.add(c.from)
   })
+  // Flächenwechsel (gewerbliche Abrechnung): Tag und Fläche je Zeile, je Tag einer.
+  const areaDays = new Set<string>()
+  const areaChanges: { from: string; areaM2: number }[] = []
+  form.areaChanges.forEach((c, i) => {
+    const where = `Flächenwechsel, Zeile ${i + 1}`
+    const a = parseNumberDe(c.area)
+    if (!c.from.trim()) problems.push({ field: areaChangeField(i), short: 'Datum fehlt', text: `${where}: Geben Sie den Tag ein, ab dem die neue Fläche gilt.` })
+    else if (!isDay(c.from)) problems.push({ field: areaChangeField(i), short: 'Kein Datum', text: `${where}: Geben Sie ein gültiges Datum ein.` })
+    else if (areaDays.has(c.from)) problems.push({ field: areaChangeField(i), short: 'Tag doppelt', text: `${where}: Für diesen Tag steht schon ein Flächenwechsel.` })
+    else if (a === null || a < 0) problems.push({ field: areaChangeField(i), short: 'Keine Fläche', text: `${where}: Geben Sie die neue Fläche in m² ein, etwa 1.200,5.` })
+    else areaChanges.push({ from: c.from, areaM2: a })
+    areaDays.add(c.from)
+  })
   // Ein Wechsel auf dieselbe Nutzung wie die Stufe davor ändert nichts und verwirrt nur (Durchsicht).
   if (problems.length === 0) {
     const order = form.usageChanges.map((c, i) => ({ c, i })).sort((a, b) => (a.c.from < b.c.from ? -1 : a.c.from > b.c.from ? 1 : 0))
@@ -123,6 +141,7 @@ export function buildUnitBody(form: UnitForm, savedPropertyId?: string): UnitBui
       mea,
       noConnection: form.noConnection,
       usageChanges: [...form.usageChanges].sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0)).map((c) => ({ from: c.from, usage: c.usage })),
+      areaChanges: areaChanges.length > 0 ? areaChanges.sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0)) : null,
       rooms,
       parentUnitId: form.parentUnitId || null,
       floor: form.floor.trim() || null,

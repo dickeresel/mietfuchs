@@ -1656,6 +1656,23 @@ export const unitLocalRents = sqliteTable(
 // ist die Angabe an der Wohnung (`participates`/`self_used`), wie `period_start_month` mit `period_changes`;
 // ohne Zeile ist der Bestand also unverändert, und es braucht keine Datenanweisung. Gelesen wird nur über
 // shared/unitUsage.ts. Eine gelöschte Wohnung nimmt ihre Wechsel mit.
+// Flächenwechsel je Einheit (gewerbliche Abrechnung): ab `from` gilt `area_m2`; die erste Stufe ist `units.area_m2`.
+export const unitAreaChanges = sqliteTable(
+  'unit_area_changes',
+  {
+    unitId: text('unit_id')
+      .notNull()
+      .references(() => units.id, { onDelete: 'cascade' }),
+    from: text('from').notNull(),
+    areaM2: real('area_m2').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.unitId, t.from] }),
+    notNegative('unit_area_changes_area_not_negative', 'area_m2'),
+    check('unit_area_changes_from_valid', sql.raw(`"from" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`)),
+  ],
+)
+
 export const unitUsageChanges = sqliteTable(
   'unit_usage_changes',
   {
