@@ -172,3 +172,25 @@ test('Sparten: Anteile am Mietverhältnis und Sparte der Kostenart hin und zurü
     s.stop()
   }
 })
+
+// ---------- Gewerblich vermietet ----------
+
+test('Gewerbe: Kennzeichen am Mietverhältnis hin und zurück, ein anderer Wert 400, die Mieterhöhung gesperrt', async () => {
+  const s = await startServer()
+  try {
+    await stock(s)
+    const [mieter] = await s.api<{ id: string, commercial?: boolean }[]>('/api/tenancies')
+    const put = (body: unknown) => send(s, `/api/tenancies/${mieter?.id}`, 'PUT', body)
+    assert.equal(mieter?.commercial, undefined, 'ohne Angabe: nein, wie bisher')
+    assert.equal((await put({ commercial: 'ja' })).status, 400)
+    assert.equal((await put({ commercial: true })).status, 200)
+    assert.equal((await s.api<{ commercial?: boolean }[]>('/api/tenancies'))[0]?.commercial, true)
+    const plan = await jsonOf<{ state: string, reasons: string[] }>(await send(s, `/api/tenancies/${mieter?.id}/rent-increase/plan`, 'POST', { kind: 'comparison', comparisonCentsPerM2: 1000, receivedOn: '2026-11-20' }))
+    assert.equal(plan.state, 'blocked')
+    assert.ok(plan.reasons.some((r) => /gewerblich/.test(r)))
+    assert.equal((await put({ commercial: false })).status, 200)
+    assert.equal((await s.api<{ commercial?: boolean }[]>('/api/tenancies'))[0]?.commercial, undefined)
+  } finally {
+    s.stop()
+  }
+})

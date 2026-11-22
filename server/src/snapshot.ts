@@ -57,6 +57,8 @@ export type SnapshotTenancy = Pick<
   | 'flatRates'
   // Anteile der Vorauszahlung je Sparte (gewerbliche Abrechnung), nur für die Aufteilung der Abrechnung.
   | 'utilityPrepayments'
+  // Gewerblich vermietet: nur, damit Hinweise zu Wohnraumregeln (§ 556c BGB) entfallen.
+  | 'commercial'
   // Direkt an Dritte gezahlte Kosten, nur für die verbilligte Vermietung in der Steuerübersicht (#257).
   | 'directCharges'
   // Datum des Mietvertrags, für den Hinweis zur Umstellung auf Wärmelieferung (Heizung PR 16, § 556c BGB) und für

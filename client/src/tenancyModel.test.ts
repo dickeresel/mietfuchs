@@ -428,3 +428,9 @@ test('Löschfrage eines Mietverhältnisses: Einzahl, mehrere Jahre, nichts dran,
       `${INSTEAD} ${UNDO}`,
   )
 })
+
+test('Kaution: bei gewerblicher Vermietung keine Höchstgrenze nach § 551 BGB', () => {
+  const form = { deposit: '9.000,00', start: '2025-01-01', baseRents: [{ from: '', amount: '1.000,00' }], costModel: 'settlement' as const, heatingModel: 'settlement' as const }
+  expect(depositLimitHint(form)).not.toBeNull()
+  expect(depositLimitHint({ ...form, commercial: true })).toBeNull()
+})

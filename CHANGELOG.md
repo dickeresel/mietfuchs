@@ -14,6 +14,12 @@ Alle nennenswerten Änderungen an Mietfuchs. Das Format orientiert sich an
 
 ### Hinzugefügt
 
+- Gewerblich vermietet: Ein Mietverhältnis lässt sich als gewerblich kennzeichnen (Stammdaten, Schritte 0110/0111).
+  Dann entfallen Regeln, die nur für Wohnraum gelten: der Hinweis zur Höchstgrenze der Kaution (§ 551 BGB), die
+  Mieterhöhung nach §§ 557 ff. BGB (gesperrt mit Satz) und ihre Einträge in „Demnächst fällig“, der Hinweis zur
+  Umstellung auf Wärmelieferung (§ 556c BGB) und, wenn im Zeitraum nur gewerbliche Mietverhältnisse abgerechnet
+  werden, Abrechnungs- und Einwendungsfrist (§ 556 Abs. 3 BGB) im Cockpit. An der Rechnung ändert das Kennzeichen
+  nichts.
 - Aufteilung der Gesamtkosten nach Kostenarten: In einer gewerblichen Abrechnung (mit Gesamtfläche des Objekts oder
   eigenen Kostenarten) steht in der Abrechnung jedes Mieters eine Tabelle wie das Formular „Aufteilung der Gesamtkosten
   für Ihr Mietobjekt“: je Kostenart Schlüssel, Gesamtkosten, Einheiten, Betrag je Einheit, Ihre Einheiten und Ihr

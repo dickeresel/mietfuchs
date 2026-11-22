@@ -64,7 +64,9 @@ export function depositProblem(entries: readonly DepositEntry[]): { date: string
 // die ganze Miete (sie steht in der Staffel der Kaltmiete). `null` heißt kein Wert und damit kein Hinweis: ohne
 // Kaltmiete am Beginn, und bei teilweise inklusiver Miete, weil dort nicht feststeht, welcher Teil der Staffel Miete
 // ist. `at` ist der Tag, dessen Fassung des Gesetzes gilt; ohne Angabe der Mietbeginn.
-export function depositLimit(tenancy: Pick<Tenancy, 'start' | 'baseRents' | 'costModel' | 'heatingModel'>, at?: string): number | null {
+// Gewerblich vermietet: § 551 BGB gilt nur für Wohnraum (§ 578 BGB verweist nicht darauf), also keine Höchstgrenze.
+export function depositLimit(tenancy: Pick<Tenancy, 'start' | 'baseRents' | 'costModel' | 'heatingModel'> & Partial<Pick<Tenancy, 'commercial'>>, at?: string): number | null {
+  if (tenancy.commercial === true) return null
   if ((tenancy.costModel === 'inclusive') !== (tenancy.heatingModel === 'inclusive')) return null
   const startMonth = tenancy.start.slice(0, 7)
   let rent: number | null = null

@@ -31,7 +31,7 @@ import { addMonths, monthBounds, monthName } from '../../shared/monthlyInfo.ts'
 import { compareText } from './calc.ts'
 import { AMOUNT_MAX_CENTS } from '../../shared/epcQr.ts'
 
-export type RentIncreaseTenancy = Pick<Tenancy, 'id' | 'start' | 'end' | 'baseRents' | 'rentKind' | 'rentIncreaseExcluded' | 'costModel' | 'heatingModel'>
+export type RentIncreaseTenancy = Pick<Tenancy, 'id' | 'start' | 'end' | 'baseRents' | 'rentKind' | 'rentIncreaseExcluded' | 'costModel' | 'heatingModel'> & Partial<Pick<Tenancy, 'commercial'>>
 export type RentIncreaseInput = {
   today: string
   tenancy: RentIncreaseTenancy
@@ -179,9 +179,13 @@ const wait = (d: Draft, sentence: string): void => {
   d.plan.refusals.push(sentence)
 }
 
+export const COMMERCIAL_RENT_TEXT = 'Das Mietverhältnis ist als gewerblich gekennzeichnet. Die Vorschriften über die Mieterhöhung (§§ 557 bis 561 BGB) gelten nur für Wohnraum (§ 549 Abs. 1 BGB), § 578 BGB verweist nicht auf sie. Eine Erhöhung richtet sich nach dem Vertrag, etwa einer Staffel oder einer Wertsicherungsklausel; tragen Sie die neue Miete dann als Stufe der Kaltmiete-Staffel ein.'
+
 // Was für beide Arten gilt: Angaben zum Vertrag (R14, M2), Bestätigungen (R13, R14), Wohnraum (S6), Staffel vorhanden.
 function commonChecks(d: Draft, input: RentIncreaseInput): void {
   const { tenancy: t, request: q, unit } = input
+  // Gewerbe: Die §§ 557 bis 561 BGB gelten nur für Wohnraum (§ 549 Abs. 1 BGB); § 578 BGB verweist nicht auf sie.
+  if (t.commercial === true) block(d, COMMERCIAL_RENT_TEXT)
   if (t.rentKind == null) need(d, 'rentKind', 'Bitte geben Sie beim Mietverhältnis die Art der Miete an (nach Vertrag, Staffelmiete oder Indexmiete). Ohne die Angabe rechnet Mietfuchs nicht, denn eine Staffel- oder Indexmiete schließt eine Erhöhung nach § 558 BGB aus.')
   if (t.rentIncreaseExcluded == null) need(d, 'exclusion', 'Bitte geben Sie beim Mietverhältnis an, ob der Vertrag Mieterhöhungen ausschließt (§ 557 Abs. 3 BGB), etwa ein Zeitmietvertrag mit fester Miete.')
   else if (t.rentIncreaseExcluded) block(d, 'Der Vertrag schließt Mieterhöhungen aus (§ 557 Abs. 3 BGB). Eine Erhöhung ist nicht möglich.')

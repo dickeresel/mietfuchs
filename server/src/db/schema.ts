@@ -368,6 +368,8 @@ export const tenancies = sqliteTable(
     // An Angehörige zu Wohnzwecken vermietet (#96 PR 2, Anlage V Z. 10, Kz. 62); NULL heißt nein, wie bisher.
     // Bedingung im zweiten Schritt.
     relative: integer('relative', { mode: 'boolean' }),
+    // Gewerblich vermietet (gewerbliche Abrechnung); NULL heißt nein. Bedingung im zweiten Schritt.
+    commercial: integer('commercial', { mode: 'boolean' }),
     // Fälligkeit der Miete laut Vertrag (#334): NULL heißt gesetzlich. Der Tag (1 bis 31) nur beim festen Tag, die erste
     // Miete bei Mietbeginn nur „ja“. Bedingungen im zweiten Schritt.
     rentDue: text('rent_due', { enum: RENT_DUE_RULES }),
@@ -395,6 +397,8 @@ export const tenancies = sqliteTable(
     check('tenancies_half_split_notice_valid', sql.raw(`"half_split_notice_on" IS NULL OR "half_split_notice_on" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`)),
     // An Angehörige vermietet (#96 PR 2): ja oder nein; `mode: 'boolean'` bindet nur den Übersetzer.
     check('tenancies_relative_known', sql.raw(`"relative" IS NULL OR "relative" IN (0, 1)`)),
+    // Gewerblich vermietet: ja oder nein.
+    check('tenancies_commercial_known', sql.raw(`"commercial" IS NULL OR "commercial" IN (0, 1)`)),
     // Fälligkeit der Miete (#334): eine Regel aus der Liste, der Tag genau beim festen Tag, ganzzahlig und zwischen 1 und 31, die erste
     // Miete bei Mietbeginn nur 1. Mit IS, weil alle drei Spalten NULL sein dürfen.
     check('tenancies_rent_due_known', sql.raw(`"rent_due" IS NULL OR "rent_due" IN ('startWorkday', 'dayOfMonth', 'inArrears')`)),

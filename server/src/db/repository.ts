@@ -639,6 +639,7 @@ function mergeTenancy(current: Tenancy, body: unknown): Tenancy {
     // An Angehörige vermietet (#96 PR 2): gespeichert nur „ja“; „nein“ und leer sind das bisherige Verhalten. Ein anderer
     // Wert wird abgelehnt und nicht still zu „nein“, sonst fehlte die Angabe in Zeile 10 der Anlage V.
     relative: merged(body, 'relative', current.relative, (v) => (nullableBoolean(v, 'An Angehörige vermietet') === true ? true : undefined)),
+    commercial: merged(body, 'commercial', current.commercial, (v) => (nullableBoolean(v, 'Gewerblich vermietet') === true ? true : undefined)),
     // Fälligkeit der Miete (#334): gespeichert nur, was vom Gesetz abweicht; die erste Miete bei Beginn nur „ja“.
     ...(rentDue !== undefined ? { rentDue } : {}),
     ...(rentDueDay !== undefined ? { rentDueDay } : {}),
@@ -2942,6 +2943,7 @@ const tenancyRow = (t: Tenancy) => ({
   selfSupplyKind: t.heatingModel === 'selfSupply' ? orNull(t.selfSupplyKind) : null,
   halfSplitNoticeOn: orNull(t.halfSplitNoticeOn),
   relative: t.relative === true ? true : null,
+  commercial: t.commercial === true ? true : null,
   rentDue: orNull(t.rentDue),
   rentDueDay: t.rentDue === 'dayOfMonth' ? orNull(t.rentDueDay) : null,
   firstRentAtStart: t.firstRentAtStart === true ? true : null,
