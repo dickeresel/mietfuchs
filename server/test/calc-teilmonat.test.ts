@@ -303,3 +303,29 @@ test('Lexikon „Angebrochener Monat“: Beispiele nachgerechnet, Auslegung und 
   assert.match(GLOSSARY.prepayment.short, /tatsächlich geleistet/)
   assert.match(GLOSSARY.prepayment.norm, /VIII ZR 240\/10/)
 })
+
+// Durchsicht nach PR #1, Befund 2: Auch die getrennte Heizkostenabrechnung (Weg d) nennt die eigene Kostenart einer
+// Heizposition; vorher kannte ihr Schnappschuss die Namen nicht, und die Zeile hieß nur „Heizung und Warmwasser“.
+test('Weg d: eine Heizposition mit eigener Kostenart trägt deren Namen auch in der getrennten Heizkostenabrechnung', () => {
+  const src = haus([{ from: '2024-05', until: null }])
+  const mitArt = {
+    ...src,
+    costItems: src.costItems.map((c) => (c.id === 'H' ? { ...c, costTypeId: 'kt' } : c)),
+    costTypes: [{ id: 'kt', propertyId: 'objekt-1', name: 'Wärmelieferung Fernwärme' }],
+  } as Source
+  const h = computeSettlement(heatingSnapshotFor(mitArt, 'objekt-1', 'hp1', of(MAI, '2024-05')) ?? assert.fail('keine Anlage'))
+  const row = h.statements[0]?.rows.find((r) => r.costItemId === 'H') ?? assert.fail('keine Zeile der Heizposition')
+  assert.equal(row.costType, 'Wärmelieferung Fernwärme')
+})
+
+// Durchsicht nach PR #1, Befund 3: Die Gesamtfläche des Objekts betrifft die Abrechnung des Objekts. Eine getrennte
+// Heizkostenabrechnung verteilt über die Wohnungen ihrer Anlage; dort meldete der Hinweis eine Abweichung, die keine ist.
+test('Weg d: die Gesamtfläche des Objekts meldet in der getrennten Heizkostenabrechnung keine Abweichung', () => {
+  const src = haus([{ from: '2024-05', until: null }])
+  const mitFlaeche = { ...src, properties: (src.properties ?? []).map((p) => ({ ...p, totalAreaM2: 500 })) } as Source
+  const h = computeSettlement(heatingSnapshotFor(mitFlaeche, 'objekt-1', 'hp1', of(MAI, '2024-05')) ?? assert.fail('keine Anlage'))
+  assert.ok(!h.notices.some((n) => n.code === 'property.area-mismatch'), 'kein Hinweis in der Heizkostenabrechnung')
+  // Die Abrechnung des Objekts meldet ihn weiter (60 m² Wohnungen gegen 500 m² Gesamtfläche).
+  const s = computeSettlement(snapshotFor(mitFlaeche, 'objekt-1', calendarYearPeriod(2025)))
+  assert.ok(s.notices.some((n) => n.code === 'property.area-mismatch'))
+})

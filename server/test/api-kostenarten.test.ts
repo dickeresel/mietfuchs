@@ -114,3 +114,26 @@ test('Eigene Kostenarten: im Backup erhalten; der Wechsel des Rhythmus ist mit i
     s.stop()
   }
 })
+
+// Durchsicht nach PR #1, Befund 1: Eine Rechnung mit eigener Kostenart und Leistungszeitraum über zwei Jahre (Versicherung
+// Juli bis Juni) ließ sich weder ungeteilt speichern (zwei Zeiträume) noch aufteilen (eigene Kostenart). Jetzt bekommt
+// jeder Teil die gleichnamige Kostenart seines Zeitraums; fehlt sie dort, wird sie mit derselben Grundart angelegt.
+test('Eigene Kostenarten: Rechnung über zwei Jahre wird aufgeteilt, jeder Teil mit der Kostenart seines Jahres', async () => {
+  const s = await startServer()
+  try {
+    await stock(s)
+    const art = await jsonOf<CostType>(await send(s, '/api/cost-types', 'POST', { period: '2025-01', name: 'Gewerbe-Police', baseCategory: 'Sach- und Haftpflichtversicherung' }))
+    const police = { period: '2025-01', category: 'Sach- und Haftpflichtversicherung', costTypeId: art.id, description: 'Gewerbe-Police', amountCents: 365000, key: 'area', serviceFrom: '2025-07-01', serviceTo: '2026-06-30' }
+    const r = await send(s, '/api/costItems/split', 'POST', police)
+    assert.equal(r.status, 201, await r.clone().text())
+    const items = (await s.api<CostItem[]>('/api/costItems')).sort((a, b) => a.period.localeCompare(b.period))
+    assert.deepEqual(items.map((i) => i.period), ['2025-01', '2026-01'])
+    assert.equal(items.reduce((a, i) => a + i.amountCents, 0), 365000)
+    const types = await s.api<CostType[]>('/api/cost-types')
+    const in2026 = types.find((t) => t.period === '2026-01') ?? assert.fail('Kostenart 2026 fehlt')
+    assert.deepEqual([in2026.name, in2026.baseCategory], ['Gewerbe-Police', 'Sach- und Haftpflichtversicherung'])
+    assert.deepEqual(items.map((i) => i.costTypeId), [art.id, in2026.id])
+  } finally {
+    s.stop()
+  }
+})

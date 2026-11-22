@@ -74,9 +74,9 @@ export const SPLIT_FIELDS = {
   // Zeitraum gehört, weiß nur dessen Abrechnung; nach Tagen geteilt fiele der Betrag eines Mieters, der im zweiten
   // Zeitraum nicht mehr wohnt, dem Vermieter zu, und der des Nachmieters ebenso im ersten.
   tenancyAmounts: 'noSplit', selfAmounts: 'noSplit',
-  // Eine eigene Kostenart gilt je Abrechnungszeitraum (gewerbliche Abrechnung); ein Teil in einem anderen Zeitraum hätte
-  // dort eine andere. Deshalb wird eine Position mit eigener Kostenart nicht nach Tagen geteilt.
-  costTypeId: 'noSplit',
+  // Eine eigene Kostenart gilt je Abrechnungszeitraum (gewerbliche Abrechnung): Jeder Teil bekommt die gleichnamige seines
+  // Zeitraums, fehlt sie dort, wird sie mit derselben Grundart angelegt (`costTypeForPeriod` in server/src/db/repository.ts).
+  costTypeId: 'part',
 } as const satisfies Record<keyof CostItem, SplitRule>
 
 // Warum sich eine Position nicht nach Tagen teilen lässt, oder `null`. Heizkosten fragt der Aufrufer selbst (eigene
@@ -84,11 +84,7 @@ export const SPLIT_FIELDS = {
 // Durchsicht, Befund 3: Rechnet die Quelle der Einzelbeträge in einem anderen Zeitraum ab, gibt es keine Beträge je
 // Abrechnungszeitraum; dann bleibt die ganze Rechnung im Zeitraum der Zahlung, wie der Wechsel es für Positionen ohne
 // Leistungszeitraum ohnehin tut (Gruppe `|einzelbetraege`).
-export function splitBlocker(c: Pick<CostItem, 'key' | 'description'> & Partial<Pick<CostItem, 'costTypeId'>>): string | null {
-  if (c.costTypeId) {
-    return `„${c.description}“ gehört zu einer eigenen Kostenart, und die gilt je Abrechnungszeitraum; nach Tagen teilt Mietfuchs eine solche Position nicht. ` +
-      'Erfassen Sie die Rechnung je Abrechnungszeitraum mit dem Teil, der darauf entfällt, oder ganz in dem Zeitraum, in dem sie bezahlt wurde.'
-  }
+export function splitBlocker(c: Pick<CostItem, 'key' | 'description'>): string | null {
   if (c.key !== 'amounts') return null
   return `„${c.description}“ ist nach Einzelbeträgen verteilt. Welcher Einzelbetrag in welchen Abrechnungszeitraum gehört, steht nur in der Abrechnung, aus der die Beträge stammen; nach Tagen teilt Mietfuchs sie nicht. ` +
     'Erfassen Sie die Rechnung je Abrechnungszeitraum, mit dem Leistungszeitraum in diesem Zeitraum und den Einzelbeträgen, die darauf entfallen. ' +
