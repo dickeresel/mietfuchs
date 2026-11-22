@@ -17,7 +17,7 @@
 // geschnitten und nicht neu erfunden: Was dort dazukommt, kommt hier nur an, wenn es jemand
 // bewusst aufnimmt.
 
-import type { BillingPeriod, Co2Refund, Co2Statement, CostItem, CostType, DegreeDayValue, FrozenFuelCarry, FuelDelivery, HeatingEnergy, HeatingEstimate, HeatingPeriodData, HeatingPlant, HeatingServiceValue, InterimGap, LawOverride, Meter, MonthlyInfoRow, OperatingPowerCredit, OperatingPowerDeduction, Payment, PeriodKey, PeriodRules, Property, Reading, StockValue, Tenancy, Unit } from '../../shared/types.ts'
+import type { BillingPeriod, Co2Refund, Co2Statement, CostItem, CostType, UtilityKind, DegreeDayValue, FrozenFuelCarry, FuelDelivery, HeatingEnergy, HeatingEstimate, HeatingPeriodData, HeatingPlant, HeatingServiceValue, InterimGap, LawOverride, Meter, MonthlyInfoRow, OperatingPowerCredit, OperatingPowerDeduction, Payment, PeriodKey, PeriodRules, Property, Reading, StockValue, Tenancy, Unit } from '../../shared/types.ts'
 import { calendarPeriod, calendarYearPeriod, parsePeriodKey, periodContaining, periodLabel, periodOfKey, previousPeriod, rulesOf, settlementDeadline, startYearOf } from '../../shared/period.ts'
 import { hasOwnRhythm, heatingPeriodsEndingIn, lineRoot, plantRules, sameFuelLine, settledSeparately, settlementKeyOf, type PlantWay } from '../../shared/heatingPeriod.ts'
 import { isStockEnergy } from '../../shared/fuelStock.ts'
@@ -55,6 +55,8 @@ export type SnapshotTenancy = Pick<
   // Durchsicht S-2: welche Heizung der Mieter selbst betreibt (Hinweis zum Betriebsstrom).
   | 'selfSupplyKind'
   | 'flatRates'
+  // Anteile der Vorauszahlung je Sparte (gewerbliche Abrechnung), nur für die Aufteilung der Abrechnung.
+  | 'utilityPrepayments'
   // Direkt an Dritte gezahlte Kosten, nur für die verbilligte Vermietung in der Steuerübersicht (#257).
   | 'directCharges'
   // Datum des Mietvertrags, für den Hinweis zur Umstellung auf Wärmelieferung (Heizung PR 16, § 556c BGB) und für
@@ -518,6 +520,8 @@ export type Snapshot = {
   property?: SnapshotProperty | null
   // Die Namen der eigenen Kostenarten des Objekts nach Kennung (gewerbliche Abrechnung); fehlt ohne eigene Kostenart.
   costTypeNames?: Record<string, string>
+  // Die Sparten der eigenen Kostenarten mit Sparte (Aufteilung der Vorauszahlung); fehlt ohne solche.
+  costTypeUtilities?: Record<string, UtilityKind>
   // Die Kostenpositionen des Vorjahres (#141), nur für den Hinweis, dass eine Position einen
   // anderen Schlüssel hat als dieselbe Kostenart im Vorjahr. Verteilt wird nichts davon. Fehlt
   // die Angabe, etwa in einem von Hand gebauten Schnappschuss, entfällt nur der Hinweis.
@@ -1038,9 +1042,12 @@ export function requireTenancyStarts(tenancies: readonly Pick<Tenancy, 'tenantNa
 }
 
 // Die Namen der eigenen Kostenarten eines Objekts; ohne welche kein Feld, damit der Schnappschuss bleibt, wie er war.
-const costTypeNamesOf = (types: readonly Pick<CostType, 'id' | 'propertyId' | 'name'>[] | undefined, propertyId: string): Pick<Snapshot, 'costTypeNames'> => {
+const costTypeNamesOf = (types: readonly Pick<CostType, 'id' | 'propertyId' | 'name' | 'utility'>[] | undefined, propertyId: string): Pick<Snapshot, 'costTypeNames' | 'costTypeUtilities'> => {
   const mine = (types ?? []).filter((t) => t.propertyId === propertyId)
-  return mine.length > 0 ? { costTypeNames: Object.fromEntries(mine.map((t) => [t.id, t.name])) } : {}
+  const withUtility = mine.flatMap((t) => (t.utility ? [[t.id, t.utility] as const] : []))
+  return mine.length > 0
+    ? { costTypeNames: Object.fromEntries(mine.map((t) => [t.id, t.name])), ...(withUtility.length > 0 ? { costTypeUtilities: Object.fromEntries(withUtility) } : {}) }
+    : {}
 }
 
 export function snapshotFor(
@@ -1062,7 +1069,7 @@ export function snapshotFor(
     // Rechtswerte des Vermieters (Heizung PR 17).
     lawOverrides?: LawOverride[]
     // Eigene Kostenarten (gewerbliche Abrechnung); in den Schnappschuss kommen nur die Namen derer des Objekts.
-    costTypes?: Pick<CostType, 'id' | 'propertyId' | 'name'>[]
+    costTypes?: Pick<CostType, 'id' | 'propertyId' | 'name' | 'utility'>[]
     // Monatliche Verbrauchsinformation (Heizung PR 22).
     monthlyInfoRows?: MonthlyInfoRow[]
     // CO₂-Erstattungen an Mieter, die selbst heizen (Heizung PR 19); sie erben das Objekt über das Mietverhältnis.

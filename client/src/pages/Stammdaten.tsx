@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { buildUtilityPrepayments, UTILITY_KINDS, UTILITY_LABELS, utilityRowsOf, type UtilityRow } from '../utilityPrepaymentForm'
 import type { CostItem, CostModel, HeatingModel, SelfSupplyKind, DepositEntry, DepositForm, DepositStatementInfo, DepositStatus, HeatingPlant, InterimGapStatus, Meter, MeterType, PaymentListItem, Reading, Settings, Tenancy, Unit, UnitDependents, UnitUsage } from '../types'
 import { servesUnit } from '../../../shared/heatingPeriod.ts'
 import { DEPOSIT_FORM_LABELS, DEPOSIT_STATUS_LABELS, METER_TYPE_LABELS, UNIT_USAGE_LABELS, usageOf } from '../types'
@@ -64,6 +65,8 @@ type TenancyForm = {
   flatRates: { from: string; amount: string }[]
   // Heizvorauszahlung je Monat (Heizung PR 5): nach dem Aufteilen bei getrennter Heizkostenabrechnung
   heatingPrepayments: { from: string; amount: string }[]
+  // Anteile der Vorauszahlung je Sparte (gewerbliche Abrechnung)
+  utilityPrepayments: UtilityRow[]
   // erweiterte Stammdaten (optional)
   email: string
   phone: string
@@ -108,6 +111,7 @@ const EMPTY_TENANCY_EXTRA = {
   costModel: 'settlement' as CostModel, heatingModel: 'settlement' as HeatingModel, selfSupplyKind: '' as SelfSupplyKind | '',
   flatRates: [] as { from: string; amount: string }[],
   heatingPrepayments: [] as { from: string; amount: string }[],
+  utilityPrepayments: [] as UtilityRow[],
   rentDue: EMPTY_RENT_DUE,
   rentKind: '' as RentKindChoice,
   rentIncreaseExcluded: '' as ExclusionChoice,
@@ -170,6 +174,7 @@ function tenancyToForm(t: Tenancy): TenancyForm {
       from: scheduleMonthText(p.from),
       amount: (p.monthlyCents / 100).toLocaleString('de-DE', { minimumFractionDigits: 2 }),
     })),
+    utilityPrepayments: utilityRowsOf(t),
     stamp: tenancyStamp(t),
   }
 }
@@ -428,9 +433,10 @@ export default function Stammdaten({ units, tenancies, settings, reload, focus, 
     const flat = buildSchedule(showsFlatRates(tenForm.costModel, tenForm.heatingModel) ? tenForm.flatRates : [], tenForm.start, 'flatRate')
     // Heizung PR 5: die Heizstaffel neben der übrigen Vorauszahlung (nach dem Aufteilen, Entwurf 3.1).
     const heat = buildSchedule(tenForm.heatingPrepayments, tenForm.start, 'heatingPrepayment')
+    const utilities = buildUtilityPrepayments(tenForm.utilityPrepayments, tenForm.start)
     const scheduleProblems = [rents, pre, heat, flat].flatMap((r) => ('problems' in r ? r.problems : []))
-    if ('problems' in rents || 'problems' in pre || 'problems' in flat || 'problems' in heat) {
-      tenErrors.report(scheduleProblems)
+    if ('problems' in rents || 'problems' in pre || 'problems' in flat || 'problems' in heat || 'problems' in utilities) {
+      tenErrors.report([...scheduleProblems, ...('problems' in utilities ? utilities.problems : [])])
       return
     }
     // Art und Indexwert je Stufe (#191), gemeldet je an ihrem Feld.
@@ -496,6 +502,7 @@ export default function Stammdaten({ units, tenancies, settings, reload, focus, 
       selfSupplyKind: tenForm.heatingModel === 'selfSupply' && tenForm.selfSupplyKind !== '' ? tenForm.selfSupplyKind : null,
       flatRates,
       heatingPrepayments: heating,
+      utilityPrepayments: utilities.value.length > 0 ? utilities.value : null,
       // Laienprobe B1: Hat sich der Stand inzwischen geändert, lehnt der Server ab, statt ihn zu ersetzen.
       ...(tenForm.stamp ? { ifUnchanged: tenForm.stamp } : {}),
     })
@@ -941,6 +948,30 @@ export default function Stammdaten({ units, tenancies, settings, reload, focus, 
               <PartialMonthNote rows={tenForm.prepayments} start={tenForm.start} end={tenForm.end} kind="prepayment" />
               <button className="btn small secondary field-add" onClick={() => setTenForm({ ...tenForm, prepayments: [...tenForm.prepayments, { from: '', amount: '' }] })}>+ Erhöhung ab Monat …</button>
             </div>
+
+            {/* Gewerbliche Abrechnung: Anteile der Vorauszahlung je Sparte. Sie teilen die Staffel oben nur auf. */}
+            <details className="extra-details" open={tenForm.utilityPrepayments.length > 0}>
+              <summary>Vorauszahlung je Sparte (Strom, Heizung, Wasser)</summary>
+              <p className="muted">
+                Freiwillig, für eine Abrechnung je Sparte. Die Beträge sind Anteile der Vorauszahlung oben; der Rest gilt als
+                übrige Nebenkosten. Die Abrechnung zeigt dann je Sparte Kosten, Vorauszahlung und Ergebnis.
+              </p>
+              {tenForm.utilityPrepayments.map((p, i) => (
+                <div className="staffel-row" key={i}>
+                  <Field label="Sparte">
+                    <select value={p.kind} onChange={(e) => setTenForm({ ...tenForm, utilityPrepayments: tenForm.utilityPrepayments.map((x, k) => (k === i ? { ...x, kind: UTILITY_KINDS.find((u) => u === e.target.value) ?? x.kind } : x)) })}>
+                      {UTILITY_KINDS.map((u) => <option key={u} value={u}>{UTILITY_LABELS[u]}</option>)}
+                    </select>
+                  </Field>
+                  <MonthField label="ab Monat" placeholder="ab Einzug" value={p.from} start={tenForm.start} today={localToday()} {...tenErrors.field(`utility.${i}.from`)} onChange={(from) => setTenForm({ ...tenForm, utilityPrepayments: tenForm.utilityPrepayments.map((x, k) => (k === i ? { ...x, from } : x)) })} />
+                  <Field label="Betrag €/Monat" {...tenErrors.field(`utility.${i}.amount`)}>
+                    <input inputMode="decimal" value={p.amount} placeholder="z. B. 1.366,33" onChange={(e) => setTenForm({ ...tenForm, utilityPrepayments: tenForm.utilityPrepayments.map((x, k) => (k === i ? { ...x, amount: e.target.value } : x)) })} />
+                  </Field>
+                  <button className="icon-btn danger" title="Zeile entfernen" aria-label="Zeile entfernen" onClick={() => { tenErrors.clear(); setTenForm({ ...tenForm, utilityPrepayments: tenForm.utilityPrepayments.filter((_, k) => k !== i) }) }}>🗑</button>
+                </div>
+              ))}
+              <button className="btn small secondary field-add" onClick={() => setTenForm({ ...tenForm, utilityPrepayments: [...tenForm.utilityPrepayments, { kind: UTILITY_KINDS[tenForm.utilityPrepayments.length % 3] ?? 'strom', from: '', amount: '' }] })}>+ weiterer Anteil</button>
+            </details>
 
             {(() => {
               // Bei getrennter Heizkostenabrechnung gehört zu jedem Mietverhältnis seine Heizvorauszahlung,

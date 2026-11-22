@@ -16,7 +16,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { AiSettings, AiSlot, Co2Refund, Co2Statement, DegreeDayValue, FrozenFuelCarry, FuelDelivery, FuelDeliveryPart, Co2TenantRelief, CostItem, HeatingEstimate, HeatingPeriodData, HeatingPlant, HeatingPlantUnit, HeatingPrepaymentOverride, InterimGap, MonthlyInfoRow, SelfSpanRange, SeparateSpan, PeriodKey, PeriodRules, Meter, MeterRest, MeterRestTarget, Payment, PersonEntry, PrepaymentEntry, Reading, RentEntry, RentIncrease, RentIndexValue, Settings, Tenancy, Unit, UsageChange, ExternalBasis, UploadInfo, StoredAssessment, StoredAssessmentLine } from '../../shared/types.ts'
+import type { AiSettings, AiSlot, Co2Refund, Co2Statement, DegreeDayValue, FrozenFuelCarry, FuelDelivery, FuelDeliveryPart, Co2TenantRelief, CostItem, HeatingEstimate, HeatingPeriodData, HeatingPlant, HeatingPlantUnit, HeatingPrepaymentOverride, InterimGap, MonthlyInfoRow, SelfSpanRange, SeparateSpan, PeriodKey, PeriodRules, Meter, MeterRest, MeterRestTarget, Payment, PersonEntry, PrepaymentEntry, Reading, RentEntry, RentIncrease, UtilityPrepayment, RentIndexValue, Settings, Tenancy, Unit, UsageChange, ExternalBasis, UploadInfo, StoredAssessment, StoredAssessmentLine } from '../../shared/types.ts'
 import type { ClosedSettlement } from '../src/store.ts'
 import { applyMigrations, connect, loadMigrations } from '../src/db/client.ts'
 import * as schema from '../src/db/schema.ts'
@@ -83,7 +83,9 @@ type _UnitUsageChanges = Assert<Matches<Omit<typeof schema.unitUsageChanges.$inf
 // weitere hinzufügt, muss diese Zeile anfassen und stolpert über die Entscheidung. Die fünfte ist
 // die Pauschale (#93).
 // Heizstaffel und Heizkorrektur (Heizung PR 5) stehen ebenfalls in eigenen Tabellen.
-type TenancyColumns = Omit<Tenancy, 'personHistory' | 'prepayments' | 'baseRents' | 'prepaymentOverrides' | 'flatRates' | 'heatingPrepayments' | 'heatingPrepaymentOverrides' | 'directCharges'>
+// Die Anteile der Vorauszahlung je Sparte (gewerbliche Abrechnung) stehen in `tenancy_utility_prepayments`.
+type TenancyColumns = Omit<Tenancy, 'personHistory' | 'prepayments' | 'baseRents' | 'prepaymentOverrides' | 'flatRates' | 'heatingPrepayments' | 'heatingPrepaymentOverrides' | 'directCharges' | 'utilityPrepayments'>
+type _UtilityPrepayments = Assert<Matches<Omit<typeof schema.tenancyUtilityPrepayments.$inferSelect, 'tenancyId'>, UtilityPrepayment>>
 type _Tenancies = Assert<Matches<typeof schema.tenancies.$inferSelect, TenancyColumns>>
 
 type _PersonHistory = Assert<Matches<Omit<typeof schema.personHistory.$inferSelect, 'tenancyId'>, PersonEntry>>
@@ -357,6 +359,7 @@ test('Migration lässt sich anwenden und legt alle Tabellen an', async () => {
       'tenancy_letter_adjustments',
       'tenancy_letter_texts',
       'tenancy_payers',
+      'tenancy_utility_prepayments',
       'unit_local_rents',
       'unit_no_connection',
       'unit_usage_changes',

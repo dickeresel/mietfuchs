@@ -15,7 +15,7 @@ test('Seitenfenster: Name Pflicht, höchstens 80 Zeichen, im Zeitraum eindeutig 
   expect(costTypeProblems({ ...EMPTY_COST_TYPE_DRAFT, name: 'sicherheitsdienst' }, TYPES.filter((t) => t.period === '2025-01'), null).map((p) => p.short)).toEqual(['Gibt es schon'])
   // Der eigene Name beim Bearbeiten ist kein Doppel.
   expect(costTypeProblems({ ...EMPTY_COST_TYPE_DRAFT, name: 'Sicherheitsdienst' }, TYPES.filter((t) => t.period === '2025-01'), 'a')).toEqual([])
-  expect(costTypeProblems({ name: 'Neu', baseCategory: 'Erfunden' }, TYPES, null).map((p) => p.field)).toEqual(['baseCategory'])
+  expect(costTypeProblems({ name: 'Neu', baseCategory: 'Erfunden', utility: '' }, TYPES, null).map((p) => p.field)).toEqual(['baseCategory'])
   expect(EMPTY_COST_TYPE_DRAFT.baseCategory).toBe('Sonstige Betriebskosten')
 })
 

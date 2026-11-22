@@ -102,7 +102,7 @@ import { allocationOf, comparablePrevious, sameAllocation, sameMeterRest, sameUn
 import { invoicesOf, possibleDuplicates, receiptedSources, separateService } from '../../shared/duplicates.ts'
 import { commonPeriod, tenancyOverlaps } from '../../shared/tenancyOverlap.ts'
 import { baseUsage, leavesRentalWithin, unitAsOf, usageChangesWithin, usageDays, usageFlags, usageSpans, type UsageSpan } from '../../shared/unitUsage.ts'
-import type { FederalState, MeterRest, MeterRestKey, MeterRestTarget, RentDueInfo, RentDueRule, TaxSpread, UnitUsage } from '../../shared/types.ts'
+import type { FederalState, MeterRest, MeterRestKey, MeterRestTarget, RentDueInfo, RentDueRule, TaxSpread, UnitUsage, UtilityKind, UtilityLine } from '../../shared/types.ts'
 import { effectiveRentDue, FIRST_YEAR, holidaysCheckedOn, monthDue, rentDueOn, type MonthDue } from '../../shared/rentDue.ts'
 import { knownUnit, metersByUnitText, unitLabel, unitScale, type UnitScale } from '../../shared/meterUnits.ts'
 import { CALENDAR_RULES, calendarYearPeriod, contextOf, formatDayRange, periodContaining, periodDays, periodLabel, periodMonths, periodOfKey, periodsBetween, previousPeriod, rulesOf, settlementDeadline, settlementPeriod, spansTwoYears, startYearOf, type PeriodContext } from '../../shared/period.ts'
@@ -312,6 +312,7 @@ const noticeKinds = {
   'basis.vacancy-no-area': { level: 'hint', title: 'Leere Einheit ohne Fläche', terms: ['vacancy', 'personDays'] },
   // Zimmer einer Wohnung (#573): Ohne Fläche der Wohnung gelten die Zimmerflächen, wie sie stehen. Fehlen darin Küche,
   // Bad und Flur, tragen die übrigen Mieter im Haus zu viel; das Geld landet vermutlich anders als gewollt.
+  'prepayment.utilities-exceed': { level: 'warning', title: 'Anteile je Sparte über der Vorauszahlung', terms: ['prepayment'] },
   'property.area-mismatch': { level: 'hint', title: 'Gesamtfläche des Objekts weicht ab', terms: ['distributionBasis'] },
   'unit.rooms-area': { level: 'warning', title: 'Wohnfläche der Wohnung mit Zimmern fehlt', terms: ['roomOfFlat', 'distributionBasis'] },
   // Ein Zimmer außerhalb der Verteilbasis einer Position: Sein Teil bleibt beim Vermieter, obwohl vielleicht ein Mieter
@@ -3502,6 +3503,11 @@ export type AllocationTrace = {
 // Ab wie viel Unterschied die Gesamtfläche des Objekts als abweichend gilt (`property.area-mismatch`): ein Hundertstel m²,
 // darunter ist es Rundung der Eingabe.
 const AREA_MISMATCH_M2 = 0.01
+
+// Sparten der Aufteilung (gewerbliche Abrechnung), in der Reihenfolge der Abrechnung; ohne eigene Kostenart gehören
+// Heizung und Warmwasser zur Heizung und Wasser/Abwasser zum Wasser, alles andere zu „sonstige“.
+const UTILITY_ORDER: readonly UtilityKind[] = ['strom', 'heizung', 'wasser']
+const DEFAULT_UTILITY: Readonly<Record<string, UtilityKind>> = { [HEATING_CATEGORY]: 'heizung', 'Wasser/Abwasser': 'wasser' }
 
 function fmtNum(n: number): string {
   return NF_MAX2.format(n)
@@ -10950,8 +10956,40 @@ export function computeSettlement(snapshot: Snapshot, options: SettlementOptions
     const c = itemById.get(row.costItemId)
     return c !== undefined && c.key === 'heatingSystem' && selfPlans.get(c.heatingPlantId ?? '')?.weights != null
   }
+  // Aufteilung nach Sparten (gewerbliche Abrechnung): Kosten je Sparte aus den Zeilen, Vorauszahlung je Sparte aus den
+  // Anteilen des Mietvertrags (Soll, dieselbe Monatsregel wie die Gesamtvorauszahlung), „sonstige“ ist der Rest. Die Summe
+  // bleibt genau die der Abrechnung. Nicht in der Heizkostenabrechnung und nicht neben einer eigenen Heizstaffel (die
+  // Gesamtvorauszahlung ist dort schon geteilt).
+  const tenancyById = new Map(partTenancies.map((t) => [t.id, t]))
+  const utilityOfRow = (row: SettlementRow): UtilityKind | null => {
+    const item = itemById.get(row.costItemId)
+    if (item?.costTypeId) return snapshot.costTypeUtilities?.[item.costTypeId] ?? null
+    return DEFAULT_UTILITY[row.category] ?? null
+  }
+  const utilitiesOf = (st: Statement): UtilityLine[] | null => {
+    const t = tenancyById.get(st.tenancyId)
+    const parts = t?.utilityPrepayments ?? []
+    if (!t || parts.length === 0 || scope !== 'all' || (t.heatingPrepayments?.length ?? 0) > 0) return null
+    const lines: UtilityLine[] = UTILITY_ORDER.map((kind) => {
+      const costCents = st.rows.filter((r) => utilityOfRow(r) === kind).reduce((a, r) => a + r.shareCents, 0)
+      const schedule = parts.filter((p) => p.kind === kind).map(({ from, monthlyCents }) => ({ from, monthlyCents }))
+      const prepaymentCents = schedule.length === 0 ? 0 : basePrepaymentCents({ ...t, prepayments: schedule, prepaymentOverrides: {} }, period).cents
+      return { kind, costCents, prepaymentCents, balanceCents: prepaymentCents - costCents }
+    })
+    const costCents = st.totalShareCents - lines.reduce((a, l) => a + l.costCents, 0)
+    const prepaymentCents = st.prepaymentCents - lines.reduce((a, l) => a + l.prepaymentCents, 0)
+    if (prepaymentCents < 0) {
+      warn('prepayment.utilities-exceed',
+        `${t.tenantName} (${t.unit.name}): Die Anteile je Sparte ergeben ${fmtCents(st.prepaymentCents - prepaymentCents)} Vorauszahlung, angesetzt sind insgesamt ${fmtCents(st.prepaymentCents)}. ` +
+          'Die übrigen Nebenkosten zeigen deshalb eine negative Vorauszahlung. Prüfen Sie die Anteile am Mietverhältnis oder die tatsächlich gezahlte Vorauszahlung.',
+        { kind: 'tenancy', id: t.id })
+    }
+    return [...lines, { kind: 'sonstige', costCents, prepaymentCents, balanceCents: prepaymentCents - costCents }]
+  }
   for (const st of result.statements) {
     st.balanceCents = st.prepaymentCents - st.totalShareCents // >0 Guthaben, <0 Nachzahlung
+    const utilities = utilitiesOf(st)
+    if (utilities) st.utilities = utilities
     const basisDays = costDays.get(st.tenancyId) ?? st.days
     const daysOf = (row: SettlementRow): number => (basisDays !== st.days && wholeTime(row) ? st.days : basisDays)
     // Eine Abrechnung nur mit Heizkosten hat keine künftige Vorauszahlung (3.7: „heatingOnly ergibt

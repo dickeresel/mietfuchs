@@ -139,7 +139,8 @@
       "scope": "all",
       "heatingOnly": false,
       "recommendedDeadline": null,
-      "adjustment": null
+      "adjustment": null,
+      "utilities": null
     },
     {
       "tenancyId": "B",
@@ -261,7 +262,8 @@
       "scope": "all",
       "heatingOnly": false,
       "recommendedDeadline": null,
-      "adjustment": null
+      "adjustment": null,
+      "utilities": null
     },
     {
       "tenancyId": "C1",
@@ -383,7 +385,8 @@
       "scope": "all",
       "heatingOnly": false,
       "recommendedDeadline": null,
-      "adjustment": null
+      "adjustment": null,
+      "utilities": null
     },
     {
       "tenancyId": "C2",
@@ -505,7 +508,8 @@
       "scope": "all",
       "heatingOnly": false,
       "recommendedDeadline": null,
-      "adjustment": null
+      "adjustment": null,
+      "utilities": null
     }
   ],
   "landlord": {

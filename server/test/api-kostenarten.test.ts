@@ -137,3 +137,38 @@ test('Eigene Kostenarten: Rechnung über zwei Jahre wird aufgeteilt, jeder Teil 
     s.stop()
   }
 })
+
+// ---------- Vorauszahlung je Sparte ----------
+
+test('Sparten: Anteile am Mietverhältnis und Sparte der Kostenart hin und zurück, Aufteilung in Abrechnung und Export', async () => {
+  const s = await startServer()
+  try {
+    const { unit } = await stock(s)
+    const [mieter] = await s.api<{ id: string }[]>('/api/tenancies')
+    const put = (body: unknown) => send(s, `/api/tenancies/${mieter?.id}`, 'PUT', body)
+    for (const falsch of [[{ kind: 'gas', from: '2025-01', monthlyCents: 100 }], [{ kind: 'strom', from: '2025-13', monthlyCents: 100 }], [{ kind: 'strom', from: '2025-01', monthlyCents: -1 }], 'viel']) {
+      assert.equal((await put({ utilityPrepayments: falsch })).status, 400, JSON.stringify(falsch))
+    }
+    assert.equal((await put({ prepayments: [{ from: '2025-01', monthlyCents: 30000 }], utilityPrepayments: [{ kind: 'strom', from: '2025-01', monthlyCents: 10000 }] })).status, 200)
+    const [gelesen] = await s.api<{ utilityPrepayments?: unknown }[]>('/api/tenancies')
+    assert.deepEqual(gelesen?.utilityPrepayments, [{ kind: 'strom', from: '2025-01', monthlyCents: 10000 }])
+
+    const art = await jsonOf<CostType>(await send(s, '/api/cost-types', 'POST', { period: '2025-01', name: 'Allgemeinstrom Halle', baseCategory: 'Sonstige Betriebskosten', utility: 'strom' }))
+    assert.equal(art.utility, 'strom')
+    assert.equal((await send(s, '/api/cost-types', 'POST', { period: '2025-01', name: 'X', baseCategory: 'Aufzug', utility: 'gas' })).status, 400)
+    await send(s, '/api/costItems', 'POST', { period: '2025-01', category: 'Sonstige Betriebskosten', costTypeId: art.id, description: 'Strom', amountCents: 150000, key: 'area' })
+    await send(s, '/api/costItems', 'POST', { period: '2025-01', category: 'Aufzug', description: 'Aufzug', amountCents: 20000, key: 'area' })
+    const st = (await s.api<Settlement>('/api/settlement/2025')).statements[0] ?? assert.fail('keine Abrechnung')
+    assert.deepEqual(st.utilities?.map((u) => [u.kind, u.costCents, u.prepaymentCents, u.balanceCents]), [
+      ['strom', 150000, 120000, -30000], ['heizung', 0, 0, 0], ['wasser', 0, 0, 0], ['sonstige', 20000, 240000, 220000],
+    ])
+    const json = await (await fetch(`${s.base}/api/settlement/2025/export?format=json`)).json() as { statements: { utilities: unknown[] | null }[] }
+    assert.equal(json.statements[0]?.utilities?.length, 4)
+    // Mit null entfernt: keine Aufteilung mehr.
+    assert.equal((await put({ utilityPrepayments: null })).status, 200)
+    assert.equal((await s.api<Settlement>('/api/settlement/2025')).statements[0]?.utilities, undefined)
+    void unit
+  } finally {
+    s.stop()
+  }
+})

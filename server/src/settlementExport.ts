@@ -7,7 +7,7 @@
 // Wohnung, keine Anschrift, keine Kontodaten, keine Texte des Anschreibens. **Beträge in JSON sind Cent
 // als ganze Zahlen**, nie Euro als Kommazahl; die CSV führt sie wie die Übersicht.csv der Steuer
 // deutsch (Komma, ohne Tausenderpunkt), weil Tabellenkalkulationen sie so lesen.
-import type { HeatingStatement, LetterAdjustmentMode, Notice, Settlement, SettlementPeriod, SettlementRow } from '../../shared/types.ts'
+import type { HeatingStatement, LetterAdjustmentMode, Notice, Settlement, SettlementPeriod, SettlementRow, UtilityLine } from '../../shared/types.ts'
 import { blockingErrors } from '../../shared/notices.ts'
 import { csvField, euro, textField } from './taxReceipts.ts'
 
@@ -70,6 +70,9 @@ export type ExportStatement = {
   recommendedDeadline: string | null
   // Die Anpassung der Vorauszahlung laut Anschreiben (keine, Vorschlag, eigener Betrag); null ohne Anschreiben.
   adjustment: { mode: LetterAdjustmentMode; newCents: number | null } | null
+  // Die Aufteilung nach Sparten (strom, heizung, wasser, sonstige) mit Kosten, Vorauszahlung und Ergebnis in Cent; null ohne
+  // Anteile je Sparte am Mietverhältnis.
+  utilities: UtilityLine[] | null
 }
 
 export type SettlementExport = {
@@ -128,6 +131,7 @@ export function settlementExportJson(s: ExportableSettlement, property: { id: st
       heatingPrepaymentCents: st.heatingPrepaymentCents ?? null, prepaymentNote: st.prepaymentNote ?? null,
       scope: st.scope ?? 'all', heatingOnly: st.heatingOnly === true, recommendedDeadline: st.recommendedDeadline ?? null,
       adjustment: s.letters?.[st.tenancyId]?.adjustment ?? null,
+      utilities: st.utilities ?? null,
     })),
     landlord: { totalCents: s.landlord.totalCents, rows: s.landlord.rows.map(exportRow(area)) },
     heating: s.heating ?? [],

@@ -77,6 +77,7 @@ const TABLE_LABELS: Record<string, string> = {
   cost_item_contract: 'Umlagevereinbarung',
   cost_sources: 'Aufgeteilte Rechnung',
   cost_types: 'Kostenart',
+  tenancy_utility_prepayments: 'Vorauszahlung je Sparte',
   cost_item_meter_rest: 'Bezugszähler und Rest',
   cost_item_meter_rest_units: 'Empfänger des Rests',
   cost_item_meter_rest_behind: 'Zähler hinter dem Bezugszähler',
@@ -113,6 +114,7 @@ const TABLE_LABELS: Record<string, string> = {
 
 // Die Beschriftungen der Felder, wie sie in den Formularen stehen.
 const FIELD_LABELS: Record<string, string> = {
+  utility: 'Sparte',
   position: 'Reihenfolge',
   base_category: 'Grundart',
   cost_type_id: 'Kostenart',
