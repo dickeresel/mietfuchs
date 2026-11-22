@@ -929,7 +929,7 @@ async function start() {
 
 // ---------- Automatische Updates (#517, updater.js) ----------
 //
-// electron-updater (fest gepinnt in desktop/package.json) mit den Releases von speedone/mietfuchs, nur im installierten
+// electron-updater (fest gepinnt in desktop/package.json) mit den Releases von dickeresel/mietfuchs, nur im installierten
 // Fenster unter Windows (`updaterSource`). Geladen wird es erst hier, auf dem Mac und im Store nie.
 //
 // **Keine Prüfung der Signatur** (`verifyUpdateCodeSignature: false` in desktop/package.json, `build.win`): Mietfuchs

@@ -15,9 +15,9 @@ import { UpdaterStatus, useDesktopUpdater, type DesktopUpdates } from './Desktop
 // fragt nur der Server, und nur mit Zustimmung (server/src/update.ts). /api/update selbst ist
 // lokal und liefert ohne Zustimmung nur die installierte Version.
 
-const README = 'https://github.com/speedone/mietfuchs#herunterladen--starten-ohne-installation'
+const README = 'https://github.com/dickeresel/mietfuchs#herunterladen--starten-ohne-installation'
 // Der Abschnitt „macOS“ unter „Installation unter Windows und macOS“ (Freigabe beim ersten Start)
-const README_MACOS = 'https://github.com/speedone/mietfuchs#macos'
+const README_MACOS = 'https://github.com/dickeresel/mietfuchs#macos'
 
 const saveSettings = (patch: Partial<Settings>) =>
   api('/api/settings', { method: 'PUT', body: JSON.stringify(patch) })
@@ -398,7 +398,7 @@ function Commands({ lines, status }: { lines: string[]; status: UpdateStatus }) 
           Steht in der docker-compose.yml eine feste Version wie <code>:0.4.0</code>, tragen Sie
           vorher die neue ein. Mit <code>docker run</code> gestartet oder das Image selbst gebaut? Die
           passenden Befehle stehen im{' '}
-          <a href="https://github.com/speedone/mietfuchs#mit-docker" target="_blank" rel="noreferrer">README</a>.
+          <a href="https://github.com/dickeresel/mietfuchs#mit-docker" target="_blank" rel="noreferrer">README</a>.
         </p>
       )}
       {status.releaseUrl && (

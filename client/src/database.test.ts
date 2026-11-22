@@ -84,7 +84,7 @@ describe('Sicherung vor dem Update (#154)', () => {
     const heading = guide.split('\n').find((line) => line.startsWith('## ') && line.includes('älteren Version'))
     if (!heading) throw new Error('MIGRATION.md hat keinen Abschnitt zum Rückweg')
     const anchor = heading.slice(3).trim().toLowerCase().replace(/[^\p{L}\p{N} -]/gu, '').replace(/ /g, '-')
-    expect(MIGRATION_GUIDE_URL).toBe(`https://github.com/speedone/mietfuchs/blob/main/MIGRATION.md#${anchor}`)
+    expect(MIGRATION_GUIDE_URL).toBe(`https://github.com/dickeresel/mietfuchs/blob/main/MIGRATION.md#${anchor}`)
     expect(anchor).toBe('zurück-zu-einer-älteren-version')
   })
 

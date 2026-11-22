@@ -9,8 +9,8 @@ const settings = (patch: Partial<Settings> = {}): Settings => ({
 
 const status = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
   enabled: true, current: '0.4.0', mode: 'binary', desktopOffer: null, latest: '0.5.0', available: true,
-  releaseUrl: 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0',
-  downloadUrl: 'https://github.com/speedone/mietfuchs/releases/download/v0.5.0/mietfuchs-win.exe',
+  releaseUrl: 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0',
+  downloadUrl: 'https://github.com/dickeresel/mietfuchs/releases/download/v0.5.0/mietfuchs-win.exe',
   checkedAt: '2026-09-19T08:00:00.000Z', error: null, ...patch,
 })
 
@@ -77,12 +77,12 @@ describe('Umstieg auf das Programmfenster (#517)', () => {
       { label: 'Oder den Installer herunterladen', href: RELEASES_URL, primary: false },
     ])
     expect(desktopLinks('macos', '0.15.0')).toEqual([{ label: 'Neues Mietfuchs herunterladen', href: RELEASES_URL, primary: true }])
-    expect(RELEASES_URL).toBe('https://github.com/speedone/mietfuchs/releases/latest')
+    expect(RELEASES_URL).toBe('https://github.com/dickeresel/mietfuchs/releases/latest')
   })
 
   test('Vorabversion: die Seite genau dieses Releases, aus der eigenen Version gebildet, und kein Store', () => {
     // releases/latest überspringt Vorabversionen, und der Store hat sie nie.
-    const tag = 'https://github.com/speedone/mietfuchs/releases/tag/v0.15.0-rc.1'
+    const tag = 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.15.0-rc.1'
     expect(desktopLinks('windows', '0.15.0-rc.1')).toEqual([{ label: 'Installer herunterladen', href: tag, primary: true }])
     expect(desktopLinks('macos', '0.15.0-rc.1')).toEqual([{ label: 'Neues Mietfuchs herunterladen', href: tag, primary: true }])
   })
@@ -99,7 +99,7 @@ describe('Umstieg auf das Programmfenster (#517)', () => {
 })
 
 describe('Anleitung je Betriebsart', () => {
-  const download = (fileName: string) => `https://github.com/speedone/mietfuchs/releases/download/v0.5.0/${fileName}`
+  const download = (fileName: string) => `https://github.com/dickeresel/mietfuchs/releases/download/v0.5.0/${fileName}`
 
   test('Programmdatei: Download der passenden Datei, das System ergibt sich aus der Datei', () => {
     // Die Anleitung unterscheidet sich: .exe ersetzen, Zip oder tar.gz erst entpacken.
@@ -113,37 +113,37 @@ describe('Anleitung je Betriebsart', () => {
 
   test('Programmdatei ohne passende Datei: Release-Seite in neuem Tab', () => {
     // Die Release-Seite ist kein Download. Im selben Tab verließe man Mietfuchs.
-    const releasePage = 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0'
+    const releasePage = 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0'
     expect(updateGuide(status({ downloadUrl: releasePage }))).toEqual({ kind: 'download', href: releasePage, system: null, newTab: true })
     expect(updateGuide(status({ downloadUrl: null }))).toEqual({ kind: 'download', href: releasePage, system: null, newTab: true })
   })
 
   test('Programmdatei ganz ohne Link: allgemeine Release-Seite', () => {
     expect(updateGuide(status({ downloadUrl: null, releaseUrl: null }))).toEqual({
-      kind: 'download', href: 'https://github.com/speedone/mietfuchs/releases/latest', system: null, newTab: true,
+      kind: 'download', href: 'https://github.com/dickeresel/mietfuchs/releases/latest', system: null, newTab: true,
     })
   })
 
   test('Aus einem Paket installiert: Release-Seite statt einer einzelnen Datei', () => {
     // Welche der drei Paketdateien passt, weiß nur die Distribution des Nutzers. Ein Download
     // der Programmdatei führte hier in die Irre: Sie gehört nach /usr/bin, nicht daneben.
-    const releasePage = 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0'
+    const releasePage = 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0'
     expect(updateGuide(status({ mode: 'package', downloadUrl: null }))).toEqual({
       kind: 'download', href: releasePage, system: 'package', newTab: true,
     })
     expect(updateGuide(status({ mode: 'package', downloadUrl: null, releaseUrl: null }))).toMatchObject({
-      href: 'https://github.com/speedone/mietfuchs/releases/latest', system: 'package',
+      href: 'https://github.com/dickeresel/mietfuchs/releases/latest', system: 'package',
     })
   })
 
   test('Programmfenster (#517): neu installieren über die Release-Seite', () => {
     expect(updateGuide(status({ mode: 'desktop', downloadUrl: null }))).toEqual({
-      kind: 'download', href: 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0', system: 'desktop', newTab: true,
+      kind: 'download', href: 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0', system: 'desktop', newTab: true,
     })
   })
 
   test('Programmfenster auf dem Mac (#517): das passende Abbild direkt, Anleitung für den Mac', () => {
-    const dmg = 'https://github.com/speedone/mietfuchs/releases/download/v0.5.0/Mietfuchs-0.5.0-apple-silicon.dmg'
+    const dmg = 'https://github.com/dickeresel/mietfuchs/releases/download/v0.5.0/Mietfuchs-0.5.0-apple-silicon.dmg'
     expect(updateGuide(status({ mode: 'desktop', downloadUrl: dmg }))).toEqual({
       kind: 'download', href: dmg, system: 'desktop-mac', newTab: false,
     })

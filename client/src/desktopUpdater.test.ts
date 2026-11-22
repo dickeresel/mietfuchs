@@ -45,8 +45,8 @@ test('„Über Mietfuchs“: der Stand des Fensters in einem Satz', () => {
 })
 
 test('„Was ist neu?“ zeigt fest ins eigene Repo', () => {
-  expect(releaseNotesUrl('0.15.0')).toBe('https://github.com/speedone/mietfuchs/releases/tag/v0.15.0')
-  expect(releaseNotesUrl('../x')).toBe('https://github.com/speedone/mietfuchs/releases/tag/v..%2Fx')
+  expect(releaseNotesUrl('0.15.0')).toBe('https://github.com/dickeresel/mietfuchs/releases/tag/v0.15.0')
+  expect(releaseNotesUrl('../x')).toBe('https://github.com/dickeresel/mietfuchs/releases/tag/v..%2Fx')
 })
 
 // Durchsicht K3: Scheitert das Fenster, bleibt der Hinweis des Servers als Weg zur neuen Version

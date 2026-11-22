@@ -26,7 +26,7 @@ import { remoteBridge } from '../desktopRemote'
 import RemoteCard from '../components/RemoteCard'
 import { useSectionJump, type FocusProps } from '../focus'
 
-const SOURCE_URL = 'https://github.com/speedone/mietfuchs'
+const SOURCE_URL = 'https://github.com/dickeresel/mietfuchs'
 const WEBSITE_URL = 'https://mietfuchs-app.de'
 const LICENSE_URL = `${SOURCE_URL}/blob/main/LICENSE`
 

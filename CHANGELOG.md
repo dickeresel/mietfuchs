@@ -6,6 +6,12 @@ Alle nennenswerten Änderungen an Mietfuchs. Das Format orientiert sich an
 
 ## [Unveröffentlicht]
 
+### Geändert
+
+- Eigene Weiterentwicklung: Die Update-Prüfung (Server, Programmfenster) und die Links auf Releases, README und
+  Doku zeigen auf `dickeresel/mietfuchs` statt auf das Originalprojekt; Versionen des Originals werden nicht mehr
+  angeboten. Solange das Repo kein Release hat, meldet die Prüfung nichts und keinen Fehler.
+
 ### Hinzugefügt
 
 - Gesamtfläche des Objekts: Am Objekt lässt sich die Gesamtfläche in m² eintragen, wie sie eine gewerbliche

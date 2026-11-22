@@ -54,7 +54,7 @@ export const BUILT_IN: RecommendationsFile = {
   ],
 }
 
-const MODELS_URL = process.env.NKA_MODELS_URL || 'https://raw.githubusercontent.com/speedone/mietfuchs/main/ki-modelle.json'
+const MODELS_URL = process.env.NKA_MODELS_URL || 'https://raw.githubusercontent.com/dickeresel/mietfuchs/main/ki-modelle.json'
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 const AFTER_ERROR_MS = 60 * 60 * 1000 // nach einem Fehler eine Stunde Ruhe, wie beim Update-Hinweis
 const MAX_MODELS = 20

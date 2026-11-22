@@ -21,7 +21,7 @@ const updaterState = (patch: Partial<UpdaterState> = {}): UpdaterState => ({
 // Der Server meldet daneben weiter seinen Stand; mit Zustimmung kennt er die neue Version auch
 const serverStatus: UpdateStatus = {
   enabled: true, current: '0.14.1', mode: 'desktop', desktopOffer: null, latest: '0.15.0', available: true,
-  releaseUrl: 'https://github.com/speedone/mietfuchs/releases/tag/v0.15.0', downloadUrl: null,
+  releaseUrl: 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.15.0', downloadUrl: null,
   checkedAt: '2026-11-02T08:00:00.000Z', error: null,
 }
 
@@ -98,7 +98,7 @@ test('Hinweis „bereit“: folgt dem Stand des Fensters, „Beim nächsten Star
   bridge.push(updaterState({ phase: 'ready', version: '0.15.0', percent: 100 }))
   view.rerender(<UIProvider><UpdaterReadyHint updates={result.current} /></UIProvider>)
   expect(screen.getByText('Version 0.15.0 ist bereit')).toBeTruthy()
-  expect(screen.getByRole('link', { name: 'Was ist neu?' }).getAttribute('href')).toBe('https://github.com/speedone/mietfuchs/releases/tag/v0.15.0')
+  expect(screen.getByRole('link', { name: 'Was ist neu?' }).getAttribute('href')).toBe('https://github.com/dickeresel/mietfuchs/releases/tag/v0.15.0')
   fireEvent.click(screen.getByRole('button', { name: 'Beim nächsten Start' }))
   await waitFor(() => expect(calls).toContain('later'))
   view.rerender(<UIProvider><UpdaterReadyHint updates={result.current} /></UIProvider>)
@@ -144,13 +144,13 @@ test('„Über Mietfuchs“ im Fenster: beim Fehler der Weg über die Release-Se
   }
   render(<Card />)
   await waitFor(() => expect(screen.getByText(/Die letzte Prüfung ist fehlgeschlagen: GitHub ist nicht erreichbar\./)).toBeTruthy())
-  expect(screen.getByRole('link', { name: 'Release-Seite' }).getAttribute('href')).toBe('https://github.com/speedone/mietfuchs/releases/latest')
+  expect(screen.getByRole('link', { name: 'Release-Seite' }).getAttribute('href')).toBe('https://github.com/dickeresel/mietfuchs/releases/latest')
   expect(screen.queryByRole('button', { name: 'Jetzt neu starten' })).toBeNull()
 })
 
 test('Mac im Fenster (Stand `off`): Anleitung mit dem passenden Abbild statt automatischem Update', async () => {
   fakeBridge(updaterState({ phase: 'off' }))
-  const dmg = 'https://github.com/speedone/mietfuchs/releases/download/v0.15.0/Mietfuchs-0.15.0-apple-silicon.dmg'
+  const dmg = 'https://github.com/dickeresel/mietfuchs/releases/download/v0.15.0/Mietfuchs-0.15.0-apple-silicon.dmg'
   serverStatus.downloadUrl = dmg
   try {
     const s = settings({ updateCheck: 'on' })
@@ -162,7 +162,7 @@ test('Mac im Fenster (Stand `off`): Anleitung mit dem passenden Abbild statt aut
     const link = await screen.findByRole('link', { name: 'Version 0.15.0 herunterladen' })
     expect(link.getAttribute('href')).toBe(dmg)
     expect(screen.getByText(/in den Ordner „Programme“ ziehen und „Ersetzen“ wählen/)).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'README' }).getAttribute('href')).toBe('https://github.com/speedone/mietfuchs#macos')
+    expect(screen.getByRole('link', { name: 'README' }).getAttribute('href')).toBe('https://github.com/dickeresel/mietfuchs#macos')
     expect(screen.queryByRole('button', { name: 'Jetzt neu starten' })).toBeNull()
   } finally {
     serverStatus.downloadUrl = null

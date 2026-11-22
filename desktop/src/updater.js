@@ -2,7 +2,7 @@
 // Electron prüfen lässt (desktop/test/updater.test.js): woher Updates kommen, wann geprüft wird, was die Oberfläche
 // sieht und in welcher Reihenfolge installiert wird. main.js setzt electron-updater ein.
 //
-// - Quelle sind die Releases von speedone/mietfuchs auf GitHub (`UPDATE_REPO`); latest.yml und die .blockmap legt
+// - Quelle sind die Releases von dickeresel/mietfuchs auf GitHub (`UPDATE_REPO`); latest.yml und die .blockmap legt
 //   electron-builder beim Bau daneben, release.yml hängt sie mit dem Installer ans Release.
 // - Gefragt wird nur mit der Zustimmung aus den Einstellungen des Servers (`updateCheck === 'on'`, dasselbe Häkchen wie
 //   für den Update-Hinweis), die das Fenster vor jeder Prüfung über 127.0.0.1 liest. Ohne sie keine Anfrage.
@@ -14,7 +14,7 @@
 import { loopbackUrl, testGripsAllowed } from './testGrips.js'
 import { UPDATE_MANIFEST_PUBLIC_KEYS, parsePublicKey, verifyManifestSignatures } from './updateManifest.js'
 
-export const UPDATE_REPO = Object.freeze({ provider: 'github', owner: 'speedone', repo: 'mietfuchs', releaseType: 'release' })
+export const UPDATE_REPO = Object.freeze({ provider: 'github', owner: 'dickeresel', repo: 'mietfuchs', releaseType: 'release' })
 
 const ONE_MINUTE = 60_000
 const ONE_HOUR = 60 * ONE_MINUTE

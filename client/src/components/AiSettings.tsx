@@ -22,7 +22,7 @@ import { NoticeBox } from './Notice'
 import { useOpenForm } from '../property'
 import Card from './Card'
 
-const README = 'https://github.com/speedone/mietfuchs#ki-belegauswertung'
+const README = 'https://github.com/dickeresel/mietfuchs#ki-belegauswertung'
 const errorText = (e: unknown) => String((e as Error)?.message ?? e)
 
 // Welche Umgebungsvariable ein Feld festlegt. Adresse und Modell kennen zwei Namen: den neuen

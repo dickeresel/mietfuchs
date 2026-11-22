@@ -62,7 +62,7 @@ export type UpdateHint = { dismissKey: string, message: string, guideUrl: string
 
 // Der Abschnitt „Zurück zu einer älteren Version“ in MIGRATION.md, verankert so, wie GitHub die
 // Überschrift umsetzt (klein, Leerzeichen zu Bindestrichen, Umlaute bleiben).
-export const MIGRATION_GUIDE_URL = 'https://github.com/speedone/mietfuchs/blob/main/MIGRATION.md#zurück-zu-einer-älteren-version'
+export const MIGRATION_GUIDE_URL = 'https://github.com/dickeresel/mietfuchs/blob/main/MIGRATION.md#zurück-zu-einer-älteren-version'
 
 // Gemerkt wird der Name der Sicherung samt ihrem Zeitpunkt. Der Name trägt den ersten
 // nachgeholten Schritt und ist damit je Update ein anderer; der Zeitpunkt unterscheidet eine

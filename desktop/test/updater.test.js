@@ -9,9 +9,9 @@ import { CHECK_INTERVAL_MS, ERROR_PAUSE_MS, FORCE_PAUSE_MS, UPDATE_REPO, createU
 
 const win = { platform: /** @type {NodeJS.Platform} */ ('win32'), packaged: true, windowsStore: false, env: {} }
 
-test('Quelle: nur das installierte Fenster unter Windows, aus den Releases von speedone/mietfuchs', () => {
+test('Quelle: nur das installierte Fenster unter Windows, aus den Releases von dickeresel/mietfuchs', () => {
   assert.deepEqual(updaterSource(win), { kind: 'github' })
-  assert.deepEqual(UPDATE_REPO, { provider: 'github', owner: 'speedone', repo: 'mietfuchs', releaseType: 'release' })
+  assert.deepEqual(UPDATE_REPO, { provider: 'github', owner: 'dickeresel', repo: 'mietfuchs', releaseType: 'release' })
   // Der Store aktualisiert selbst, der Mac bräuchte eine bezahlte Signatur, beim Entwickeln gibt es nichts zu ersetzen
   assert.deepEqual(updaterSource({ ...win, windowsStore: true }), { kind: 'off', reason: 'store' })
   assert.deepEqual(updaterSource({ ...win, platform: 'darwin' }), { kind: 'off', reason: 'mac' })
