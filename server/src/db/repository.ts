@@ -37,7 +37,7 @@ import { selfActive, selfFromOf } from '../heating.ts'
 import { captureOf, coversPeriod, hotWaterOf } from '../hca.ts'
 import { and, count, desc, eq, inArray, isNotNull, ne, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
-import type { BillingPeriod, CostItem, ExternalBasis, FederalState, HeatingPlant, HeatingPrepaymentOverride, InterimGapStatus, LocalRentEntry, Meter, MeterType, Payment, PeriodKey, PeriodRules, PersonEntry, PrepaymentEntry, Property, Reading, RentEntry, SplitPreviewPart, SpreadYears, Tenancy, Unit, UnitDependents, UsageChange, RentChangeReason, RentIndexValue, RentKind } from '../../../shared/types.ts'
+import type { BillingPeriod, CostItem, ExternalBasis, FederalState, HeatingPlant, HeatingPrepaymentOverride, InterimGapStatus, LocalRentEntry, Meter, MeterType, Payment, PeriodKey, PeriodRules, PersonEntry, PrepaymentEntry, Property, Reading, RentEntry, SplitPreviewPart, SpreadYears, Tenancy, Unit, UnitDependents, UsageChange, UtilityKind, UtilityPrepayment, RentChangeReason, RentIndexValue, RentKind } from '../../../shared/types.ts'
 import { usageChangesOf } from '../../../shared/unitUsage.ts'
 import { hasKnownUnits, unitKey, unitLabel, unitProblem } from '../../../shared/meterUnits.ts'
 import { CALENDAR_RULES, calendarPeriod, paymentYear, formatDayRange, isCalendarRules, parsePeriodKey, periodContaining, periodLabel, periodMonths, periodOfKey, periodsBetween, rulesOf, spansTwoYears, startYearOf } from '../../../shared/period.ts'
@@ -71,7 +71,7 @@ import {
 import {
   aiSlots, assessmentLines, assessments, baseRents, co2Refunds, co2Statements, depositEntries, co2TenantReliefs, heatingPeriods, closedHeatingSettlementHistory, closedHeatingSettlements, closedSettlementHistory, closedSettlements, COST_KEYS, COST_MODELS, HEATING_MODELS, RENT_CHANGE_REASONS, RENT_DUE_RULES, RENT_KINDS, SELF_SUPPLY_KINDS, costItemAmounts, costItemContract, costItemParticipants, costItemSelfAmounts, costItemShares, costItems, costSources, costTypes, DEPOSIT_FORMS, DEPOSIT_STATUS, PAYMENT_KINDS, EXTERNAL_MEASURES,
   HCA_SCALES, HEATING_PARTS, OPERATING_POWER, HEATING_ROLES, HEATING_TARGETS, INTERIM_GAP_STATUS, interimReadingGaps, heatingPeriodChanges, heatingPlants, heatingPlantUnits, heatingSelfSpans, heatingPrepaymentOverrides, heatingPrepayments, heatingSeparateSpans, heatingServiceValues, heatingEstimates,
-  flatRates, tenancyDirectCharges, METER_TYPES, UNIT_USAGES, meters, payments, periodChanges, personHistory, prepaymentOverrides, prepayments, properties, PROPERTY_KINDS,
+  flatRates, tenancyDirectCharges, tenancyUtilityPrepayments, UTILITY_KINDS, METER_TYPES, UNIT_USAGES, meters, payments, periodChanges, personHistory, prepaymentOverrides, prepayments, properties, PROPERTY_KINDS,
   readings, rentIncreases, settings, tenancies, unitLocalRents, unitNoConnection, unitUsageChanges, units, fuelCarryFrozen, fuelDeliveries,
 } from './schema.ts'
 import { linkedTargetRefusal } from './bankGuard.ts'
@@ -268,6 +268,26 @@ const personEntry = (row: unknown): PersonEntry | null => {
   const from = asOptionalText(raw(row, 'from'))
   return from === undefined ? null : { from, persons: asNumber(raw(row, 'persons'), 1) }
 }
+// Die Anteile je Sparte: unbekannte Sparte oder ein Eintrag ohne Monat ist ein Satz (400), nicht still verworfen.
+function readUtilityPrepayments(v: unknown): UtilityPrepayment[] | undefined {
+  if (v === null || v === undefined) return undefined
+  if (!Array.isArray(v)) throw new RentDataError('Die Vorauszahlung je Sparte ist eine Liste von Anteilen (Sparte, ab Monat, Betrag).')
+  const out: UtilityPrepayment[] = []
+  for (const row of v) {
+    const kind = raw(row, 'kind')
+    const from = asOptionalText(raw(row, 'from'))
+    const cents = raw(row, 'monthlyCents')
+    if (typeof kind !== 'string' || !(UTILITY_KINDS as readonly string[]).includes(kind)) throw new RentDataError('Die Sparte einer Vorauszahlung ist Strom, Heizung oder Wasser.')
+    if (from === undefined || !/^\d{4}-(0[1-9]|1[0-2])$/.test(from)) throw new RentDataError('Eine Vorauszahlung je Sparte gilt ab einem Monat (JJJJ-MM).')
+    if (typeof cents !== 'number' || !Number.isInteger(cents) || cents < 0) throw new RentDataError('Der Anteil einer Sparte ist ein Betrag ab 0 € je Monat.')
+    // Zwei Einträge derselben Sparte im selben Monat: der letzte gilt (wie bei jeder Staffel, schedule.ts).
+    const same = out.findIndex((e) => e.kind === kind && e.from === from)
+    if (same >= 0) out.splice(same, 1)
+    out.push({ kind: kind as UtilityKind, from, monthlyCents: cents })
+  }
+  return out.length > 0 ? out : undefined
+}
+
 const moneyEntry = (row: unknown): PrepaymentEntry | null => {
   const from = asOptionalText(raw(row, 'from'))
   return from === undefined ? null : { from, monthlyCents: asNumber(raw(row, 'monthlyCents'), 0) }
@@ -584,6 +604,8 @@ function mergeTenancy(current: Tenancy, body: unknown): Tenancy {
     end: merged(body, 'end', current.end, (v) => asNullableFilled(dayInput(DAY_LABELS.end)(v))),
     prepayments: merged(body, 'prepayments', current.prepayments, (v) => readSchedule<PrepaymentEntry>(v, moneyEntry)),
     flatRates: merged(body, 'flatRates', current.flatRates, (v) => (v === null ? undefined : readSchedule<PrepaymentEntry>(v, moneyEntry))),
+    // Anteile der Vorauszahlung je Sparte (gewerbliche Abrechnung); `null` oder leer heißt keine Aufteilung.
+    utilityPrepayments: merged(body, 'utilityPrepayments', current.utilityPrepayments, readUtilityPrepayments),
     // #257: wie die Pauschale ganz ersetzt; `null` entfernt. Ein Monat, der keiner ist, oder ein negativer Betrag ist
     // eine 400 mit eigenem Satz, denn sonst schlüge der Fremdschlüssel- oder Prüfbedingungsfehler durch.
     directCharges: merged(body, 'directCharges', current.directCharges, readDirectCharges),
@@ -2972,6 +2994,9 @@ async function writeTenancyChildren(db: Executor, t: Tenancy): Promise<void> {
   await db.delete(tenancyDirectCharges).where(eq(tenancyDirectCharges.tenancyId, t.id))
   const direkt = byFrom(t.directCharges ?? [])
   if (direkt.length > 0) await db.insert(tenancyDirectCharges).values(direkt.map((e) => ({ tenancyId: t.id, from: e.from, monthlyCents: e.monthlyCents })))
+  await db.delete(tenancyUtilityPrepayments).where(eq(tenancyUtilityPrepayments.tenancyId, t.id))
+  const sparten = byFrom(t.utilityPrepayments ?? [])
+  if (sparten.length > 0) await db.insert(tenancyUtilityPrepayments).values(sparten.map((e) => ({ tenancyId: t.id, kind: e.kind, from: e.from, monthlyCents: e.monthlyCents })))
   await db.delete(flatRates).where(eq(flatRates.tenancyId, t.id))
   const pauschalen = byFrom(t.flatRates ?? [])
   if (pauschalen.length > 0) {
@@ -3401,7 +3426,7 @@ export async function costTypeForPeriod(tx: Executor, typeId: string | null | un
   const same = there.find((t) => t.name.toLocaleLowerCase('de-DE') === type.name.toLocaleLowerCase('de-DE'))
   if (same) return same.id
   const id = newId()
-  await tx.insert(costTypes).values({ id, propertyId: type.propertyId, period, name: type.name, baseCategory: type.baseCategory, position: there.reduce((a, t) => Math.max(a, t.position + 1), 0) })
+  await tx.insert(costTypes).values({ id, propertyId: type.propertyId, period, name: type.name, baseCategory: type.baseCategory, utility: type.utility, position: there.reduce((a, t) => Math.max(a, t.position + 1), 0) })
   return id
 }
 

@@ -14,6 +14,13 @@ Alle nennenswerten Änderungen an Mietfuchs. Das Format orientiert sich an
 
 ### Hinzugefügt
 
+- Vorauszahlung je Sparte: Am Mietverhältnis lassen sich die Anteile der Vorauszahlung für Strom, Heizung und Wasser
+  eintragen, je ab Monat (Stammdaten, „Vorauszahlung je Sparte“, Schritte 0108/0109); eigene Kostenarten bekommen eine
+  Sparte, ohne eigene Kostenart zählen Heizung und Warmwasser zur Heizung und Wasser/Abwasser zum Wasser. Die
+  Abrechnung zeigt dann je Sparte Kosten, Vorauszahlung und Ergebnis, der Rest steht unter „Übrige Nebenkosten“;
+  zusammen genau das bisherige Ergebnis (JSON `utilities`). Mietkonto, Bankabgleich und Anschreiben bleiben bei der
+  Gesamtvorauszahlung. Liegen die Anteile über der Gesamtvorauszahlung, warnt die Abrechnung. Ohne Anteile ändert
+  sich nichts.
 - Gesamtfläche des Objekts: Am Objekt lässt sich die Gesamtfläche in m² eintragen, wie sie eine gewerbliche
   Abrechnung als „Gesamteinheiten“ nennt (freiwillig, Schritte 0105/0106). Der Export der Abrechnung nennt sie
   (JSON `property.totalAreaM2`, eingefroren mit dem Abschluss) und je Zeile mit Schlüssel Fläche den Betrag pro m²

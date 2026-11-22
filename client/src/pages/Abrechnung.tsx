@@ -69,6 +69,7 @@ import PrepaymentStepsCard from '../components/PrepaymentStepsCard'
 import { sentMonthLines } from '../prepaymentSteps'
 import { asTemplates, footnoteText, infoRows, labor35aTable, letterOf, letterParagraphs, RETURN_LINE_MAX, resultRows, returnLineTooLong, IBAN_MISSING_CLOSED_TEXT, IBAN_MISSING_TEXT, IBAN_MISSING_TITLE, ibanMissing, SENDER_MISSING_CLOSED_TEXT, SENDER_MISSING_TEXT, senderMissing, statementHeadRows } from '../letterView'
 import { rowCategory } from '../costTypeForm'
+import { UTILITY_LABELS, utilityResultText } from '../utilityPrepaymentForm'
 
 type Props = {
   settings: Settings | null
@@ -1334,6 +1335,23 @@ export default function Abrechnung({ settings, units, tenancies, reload, onNavig
                       </td>
                     </tr>
                   </tfoot>
+                </Table>
+              )}
+              {/* Gewerbliche Abrechnung: Aufteilung nach Sparten, zusammen genau das Ergebnis darüber. */}
+              {st.utilities && st.utilities.length > 0 && (
+                <Table className="print-compact" aria-label="Aufteilung nach Sparten">
+                  <caption className="text-left">Aufteilung nach Sparten</caption>
+                  <thead><tr><th>Sparte</th><th className="num">Ihre Kosten</th><th className="num">Ihre Vorauszahlung</th><th className="num">Ergebnis</th></tr></thead>
+                  <tbody>
+                    {st.utilities.map((u) => (
+                      <tr key={u.kind}>
+                        <td>{UTILITY_LABELS[u.kind]}</td>
+                        <td className="num">{fmtEuro(u.costCents)}</td>
+                        <td className="num">{fmtEuro(u.prepaymentCents)}</td>
+                        <td className="num">{utilityResultText(u.balanceCents)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </Table>
               )}
               {/* Der Ausweis nach § 7 Abs. 3 CO2KostAufG (Heizung PR 6) wird mitgedruckt. */}

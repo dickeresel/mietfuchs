@@ -757,6 +757,20 @@
       "when": 1795349877594,
       "tag": "0107_eigene_kostenarten",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "6",
+      "when": 1795365355399,
+      "tag": "0108_sparten",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "6",
+      "when": 1795365356000,
+      "tag": "0109_sparten_bedingung",
+      "breakpoints": true
     }
   ]
 }

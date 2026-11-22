@@ -30,7 +30,7 @@ import type { Executor } from './client.ts'
 import { deepFreeze, stockMarkOf } from './stockCache.ts'
 import {
   aiSlots, baseRents, closedHeatingSettlements, co2Refunds, co2Statements, co2TenantReliefs, degreeDayValues, fuelCarryFrozen, fuelDeliveries, fuelDeliveryParts, heatingPeriods, closedSettlements, costItemAmounts, costItemContract, costItemMeterRest, costItemMeterRestBehind, costItemMeterRestSubs, costItemMeterRestUnits, costItemParticipants, costItemSelfAmounts, costItemShares, costItems, depositEntries, unitLocalRents, unitNoConnection, unitUsageChanges, meters, payments,
-  flatRates, tenancyDirectCharges, heatingPeriodChanges, heatingPlants, heatingPlantUnits, heatingPrepaymentOverrides, heatingPrepayments, heatingSelfSpans, heatingSeparateSpans, heatingServiceValues, periodChanges, personHistory, prepaymentOverrides, prepayments, properties, readings, settings, tenancies, units,
+  flatRates, tenancyDirectCharges, tenancyUtilityPrepayments, heatingPeriodChanges, heatingPlants, heatingPlantUnits, heatingPrepaymentOverrides, heatingPrepayments, heatingSelfSpans, heatingSeparateSpans, heatingServiceValues, periodChanges, personHistory, prepaymentOverrides, prepayments, properties, readings, settings, tenancies, units,
   interimReadingGaps, heatingEstimates, heatingMonthlyInfo,
 } from './schema.ts'
 
@@ -206,12 +206,14 @@ export async function readTenancies(db: Executor): Promise<Tenancy[]> {
   const personRows = await db.select().from(personHistory).orderBy(INSERTION_ORDER)
   const prepaymentRows = await db.select().from(prepayments).orderBy(INSERTION_ORDER)
   const flatRateRows = await db.select().from(flatRates).orderBy(INSERTION_ORDER)
+  const utilityRows = await db.select().from(tenancyUtilityPrepayments).orderBy(INSERTION_ORDER)
   const baseRentRows = await db.select().from(baseRents).orderBy(INSERTION_ORDER)
   const overrideRows = await db.select().from(prepaymentOverrides).orderBy(INSERTION_ORDER)
 
   const persons = groupBy(personRows, (r) => r.tenancyId, (r) => ({ from: r.from, persons: r.persons }))
   const prepaid = groupBy(prepaymentRows, (r) => r.tenancyId, (r) => ({ from: r.from, monthlyCents: r.monthlyCents }))
   const flat = groupBy(flatRateRows, (r) => r.tenancyId, (r) => ({ from: r.from, monthlyCents: r.monthlyCents }))
+  const sparten = groupBy(utilityRows, (r) => r.tenancyId, (r) => ({ kind: r.kind, from: r.from, monthlyCents: r.monthlyCents }))
   // Direkt an Dritte gezahlte Kosten (#257), nach Monat; nur mit Einträgen.
   const direct = groupBy(await db.select().from(tenancyDirectCharges).orderBy(asc(tenancyDirectCharges.tenancyId), asc(tenancyDirectCharges.from)), (r) => r.tenancyId, (r) => ({ from: r.from, monthlyCents: r.monthlyCents }))
   // Art und Indexwert der Stufe (#191) nur mit Angabe: Eine Staffel ohne liest sich wie vor den Spalten.
@@ -246,6 +248,8 @@ export async function readTenancies(db: Executor): Promise<Tenancy[]> {
     prepayments: prepaid.get(t.id) ?? [],
     // Nur mit Einträgen, wie die übrigen Angaben aus #93: Die db.json kennt das Feld nicht.
     ...(flat.has(t.id) ? { flatRates: flat.get(t.id) } : {}),
+    // Anteile je Sparte (gewerbliche Abrechnung), nur mit Einträgen.
+    ...(sparten.has(t.id) ? { utilityPrepayments: sparten.get(t.id) } : {}),
     ...(direct.has(t.id) ? { directCharges: direct.get(t.id) } : {}),
     ...(heizstaffel.has(t.id) ? { heatingPrepayments: heizstaffel.get(t.id) ?? [] } : {}),
     ...(heizkorrekturen.has(t.id) ? { heatingPrepaymentOverrides: heizkorrekturen.get(t.id) ?? [] } : {}),

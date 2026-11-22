@@ -269,6 +269,9 @@ const OWN_CHECK_MESSAGES: Readonly<Record<string, string>> = {
   // Mieterhöhung (#191): Repository und Wächter fangen das vorher ab; die Bedingungen sind das Netz darunter.
   tenancies_rent_kind_known: RENT_DATA_TEXTS.kind,
   tenancies_rent_increase_excluded_known: 'Ob der Vertrag Mieterhöhungen ausschließt, ist ja, nein oder nicht angegeben. Bitte wählen Sie eins davon.',
+  tenancy_utility_prepayments_not_negative: 'Der Anteil einer Sparte ist ein Betrag ab 0 € je Monat.',
+  tenancy_utility_prepayments_kind_known: 'Die Sparte einer Vorauszahlung ist Strom, Heizung oder Wasser.',
+  cost_types_utility_known: 'Die Sparte einer Kostenart ist Strom, Heizung, Wasser oder leer (übrige Nebenkosten).',
   properties_total_area_positive: 'Die Gesamtfläche des Objekts ist eine Zahl in m² über 0, etwa 3334,81. Leer heißt nicht eingetragen.',
   properties_rent_cap_reduced_known:'Ob in der Gemeinde eine Kappungsgrenzen-Verordnung gilt, ist ja, nein oder „weiß nicht“. Bitte wählen Sie eins davon.',
   base_rents_reason_known: RENT_DATA_TEXTS.reason,

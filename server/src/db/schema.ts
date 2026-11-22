@@ -13,6 +13,7 @@ import { sql } from 'drizzle-orm'
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 import type {
   UnitUsage,
+  UtilityKind,
   AgreedOtherwise,
   AiJsonMode,
   AiProviderKind,
@@ -179,6 +180,8 @@ const periodKeyCheck = (name: string, column: string) =>
 // Die Arten eines Objekts (#92). Sie steuern später Voreinstellungen und Oberfläche (#94); in
 // Teil 1 werden sie nur gespeichert und angezeigt.
 export const PROPERTY_KINDS = exactly<PropertyKind>()(['mfh', 'etw', 'efh', 'zfh', 'sonstiges'] as const)
+// Die Sparten der gewerblichen Abrechnung (Aufteilung der Vorauszahlung).
+export const UTILITY_KINDS = exactly<UtilityKind>()(['strom', 'heizung', 'wasser'] as const)
 
 // Die 16 Länder (Fristen und Feiertage, shared/holidays.ts). Dieselbe Liste steht dort mit den Namen;
 // `exactly` hält beide am Typ fest.
@@ -447,6 +450,25 @@ export const prepayments = sqliteTable(
 // Pauschale ab einem Monat ('YYYY-MM', #93). Eine eigene Tabelle und nicht die der Vorauszahlung:
 // Das Mietkonto führt sie im Soll, die Abrechnung rechnet sie nie an. In derselben Staffel würde
 // sie bei einem gemischten Modell gegen die abgerechneten Kosten gutgeschrieben.
+// Die Anteile der Vorauszahlung je Sparte (gewerbliche Abrechnung), ab Monat wie `prepayments`. Sie teilen die
+// Gesamtvorauszahlung nur auf; Mietkonto und Bankabgleich lesen sie nicht.
+export const tenancyUtilityPrepayments = sqliteTable(
+  'tenancy_utility_prepayments',
+  {
+    tenancyId: text('tenancy_id')
+      .notNull()
+      .references(() => tenancies.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: UTILITY_KINDS }).notNull(),
+    from: text('from').notNull(),
+    monthlyCents: integer('monthly_cents').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenancyId, t.kind, t.from] }),
+    notNegative('tenancy_utility_prepayments_not_negative', 'monthly_cents'),
+    oneOf('tenancy_utility_prepayments_kind_known', 'kind', UTILITY_KINDS),
+  ],
+)
+
 export const flatRates = sqliteTable(
   'flat_rates',
   {
@@ -1231,10 +1253,14 @@ export const costTypes = sqliteTable(
     baseCategory: text('base_category').notNull(),
     // Reihenfolge in der Liste des Zeitraums, aufsteigend.
     position: integer('position').notNull().default(0),
+    // Die Sparte für die Aufteilung der Vorauszahlung (strom, heizung, wasser); NULL heißt „übrige“. Bedingung im
+    // zweiten Schritt.
+    utility: text('utility', { enum: UTILITY_KINDS }),
   },
   (t) => [
     uniqueIndex('cost_types_property_period_name_idx').on(t.propertyId, t.period, t.name),
     check('cost_types_name_valid', sql.raw('length(trim("name")) BETWEEN 1 AND 80 AND "name" = trim("name")')),
+    oneOf('cost_types_utility_known', 'utility', UTILITY_KINDS),
   ],
 )
 

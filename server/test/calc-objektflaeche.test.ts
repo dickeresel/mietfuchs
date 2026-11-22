@@ -129,3 +129,54 @@ test('Export CSV ohne Gesamtfläche: Kopfzeile wie bisher', () => {
   const head = settlementExportCsv(exportable(settle(GAGLOWER))).replace(/^﻿/, '').split('\r\n')[0]
   assert.equal(head, 'Mieter;Wohnung;Zeitraum von;Zeitraum bis;Zeile;Kostenart;Beschreibung;Gesamtkosten;Schlüssel;Basis;Anteil;davon Lohnanteil § 35a')
 })
+
+// ---------- Vorauszahlung je Sparte (gewerbliche Abrechnung) ----------
+// Die Tabelle des Vermieters: Strom 1.366,33 €, Heizung 1.091,29 €, Wasser 24,30 € je Monat; dazu hier 500,00 € übrige
+// Nebenkosten. Die Gesamtvorauszahlung bleibt die Summe, die Sparten teilen sie nur auf.
+const SPARTEN = [
+  { kind: 'strom' as const, from: '2025-01', monthlyCents: 136633 },
+  { kind: 'heizung' as const, from: '2025-01', monthlyCents: 109129 },
+  { kind: 'wasser' as const, from: '2025-01', monthlyCents: 2430 },
+]
+const settleSparten = (utilityPrepayments = SPARTEN, totalMonthly = 136633 + 109129 + 2430 + 50000): ComputedSettlement => {
+  const t: SnapshotTenancy = { ...tenancy, prepayments: [{ from: '2025-01', monthlyCents: totalMonthly }], utilityPrepayments }
+  const src: SnapshotSource = { ...source(GAGLOWER), tenancies: [t], costItems: [
+    { ...item('strom', 'Sonstige Betriebskosten', 'Strom', 2313747), costTypeId: 'kt-strom' },
+    { ...item('heizung', 'Sonstige Betriebskosten', 'Heizung', 3989307), costTypeId: 'kt-heizung' },
+    item('wasser', 'Wasser/Abwasser', 'Wasser', 93829),
+    item('aufzug', 'Aufzug', 'Wartung Fahrstuhl', 271155),
+  ] }
+  return computeSettlement({
+    ...snapshotOf(src, 2025), property: property(OBJECT_AREA),
+    costTypeNames: { 'kt-strom': 'Strom', 'kt-heizung': 'Heizung' },
+    costTypeUtilities: { 'kt-strom': 'strom', 'kt-heizung': 'heizung' },
+  })
+}
+
+test('Sparten: Kosten, Vorauszahlung und Ergebnis je Sparte wie die Tabelle des Vermieters; Summe = Abrechnung', () => {
+  const st = settleSparten().statements[0] ?? assert.fail('keine Abrechnung')
+  const u = st.utilities ?? assert.fail('keine Aufteilung')
+  assert.deepEqual(u.map((l) => [l.kind, l.costCents, l.prepaymentCents, l.balanceCents]), [
+    ['strom', 738686, 12 * 136633, 12 * 136633 - 738686], // Gutschrift 9.009,10 € (Tabelle mit Jahreswert: 9.009,06 €)
+    ['heizung', 1273624, 12 * 109129, 12 * 109129 - 1273624], // Gutschrift 359,24 €
+    ['wasser', 29956, 12 * 2430, 12 * 2430 - 29956], // Nachzahlung 7,96 €
+    ['sonstige', 86569, 12 * 50000, 12 * 50000 - 86569],
+  ])
+  assert.equal(u.reduce((a, l) => a + l.costCents, 0), st.totalShareCents)
+  assert.equal(u.reduce((a, l) => a + l.prepaymentCents, 0), st.prepaymentCents)
+  assert.equal(u.reduce((a, l) => a + l.balanceCents, 0), st.balanceCents)
+})
+
+test('Sparten: ohne Anteile keine Aufteilung und dieselben Zahlen', () => {
+  const mit = settleSparten()
+  const ohne = settleSparten([])
+  assert.equal(ohne.statements[0]?.utilities, undefined)
+  assert.equal(ohne.statements[0]?.balanceCents, mit.statements[0]?.balanceCents)
+})
+
+test('Sparten: Anteile über der Gesamtvorauszahlung ergeben eine Warnung und negative übrige Vorauszahlung', () => {
+  const s = settleSparten(SPARTEN, 100000)
+  assert.ok(s.notices.some((n) => n.code === 'prepayment.utilities-exceed'))
+  const sonstige = s.statements[0]?.utilities?.find((l) => l.kind === 'sonstige')
+  assert.ok((sonstige?.prepaymentCents ?? 0) < 0)
+})

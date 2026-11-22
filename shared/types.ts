@@ -136,6 +136,16 @@ export type PrepaymentEntry = {
   monthlyCents: number
 }
 
+// Die Sparten einer gewerblichen Abrechnung (Strom, Heizung, Wasser); was keiner gehört, zählt zu „übrige Nebenkosten“.
+// Gespeicherte Fachwerte, deshalb deutsch.
+export type UtilityKind = 'strom' | 'heizung' | 'wasser'
+// Ein Anteil der Vorauszahlung für eine Sparte, ab einem Monat (Staffel wie `prepayments`). Die Anteile teilen die
+// Gesamtvorauszahlung `prepayments` nur auf; Mietkonto, Bankabgleich und Anschreiben kennen sie nicht.
+export type UtilityPrepayment = { kind: UtilityKind; from: string; monthlyCents: number }
+// Eine Zeile der Aufteilung nach Sparten in der Abrechnung eines Mieters: Kosten, Vorauszahlung und Ergebnis
+// (positiv Guthaben, negativ Nachzahlung), zusammen genau die Summe der Abrechnung. `sonstige` ist der Rest.
+export type UtilityLine = { kind: UtilityKind | 'sonstige'; costCents: number; prepaymentCents: number; balanceCents: number }
+
 // Kaltmiete-Staffel - gleiche „ab Monat gilt Betrag“-Mechanik wie die Vorauszahlung.
 // Bruttomiete = Kaltmiete + NK-Vorauszahlung des jeweiligen Monats.
 export type RentEntry = {
@@ -207,6 +217,9 @@ export type Tenancy = {
   start: string
   end: string | null
   prepayments: PrepaymentEntry[]
+  // Die Anteile der Vorauszahlung je Sparte (gewerbliche Abrechnung), fehlend heißt keine Aufteilung. Mit Anteilen
+  // zeigt die Abrechnung je Sparte Kosten, Vorauszahlung und Ergebnis; an der Gesamtrechnung ändert sich nichts.
+  utilityPrepayments?: UtilityPrepayment[]
   prepaymentOverrides: Record<string, number> // Zeitraum ('JJJJ-MM', #208) → tatsächlich gezahlter Betrag
   // Die Heizvorauszahlung, getrennt von den übrigen (Heizung PR 5, Entwurf 3.1, 5.3): Bei getrennter
   // Heizkostenabrechnung steht hier ab dem Umstellen der Heizanteil, in `prepayments` der Rest; je
@@ -882,7 +895,8 @@ export type CostItem = {
 // Export, `baseCategory` ist eine Kostenart aus der Liste von Mietfuchs (shared/categories.ts), nach der gerechnet wird.
 // `itemCount`: Zahl der Positionen, die auf sie verweisen (nur gelesen; mit Positionen lässt sie sich nicht löschen und
 // ihre Grundart nicht ändern).
-export type CostType = { id: string; propertyId: string; period: PeriodKey; name: string; baseCategory: string; position: number; itemCount: number }
+// `utility`: die Sparte der Kostenart für die Aufteilung der Vorauszahlung, fehlend oder `null` heißt „übrige“.
+export type CostType = { id: string; propertyId: string; period: PeriodKey; name: string; baseCategory: string; position: number; itemCount: number; utility?: UtilityKind | null }
 
 // Die Jahre einer Verteilung nach § 82b EStDV (#262). „1 Jahr“ ist keine Verteilung und hat keinen eigenen Wert.
 export type SpreadYears = 2 | 3 | 4 | 5
@@ -1356,6 +1370,9 @@ export type CalcStep = { label: string; value: string; term?: TermId }
 
 export type Statement = {
   tenancyId: string
+  // Die Aufteilung nach Sparten (gewerbliche Abrechnung): nur, wenn das Mietverhältnis Anteile je Sparte hat
+  // (`Tenancy.utilityPrepayments`). Die Zeilen ergeben zusammen genau Kosten, Vorauszahlung und Ergebnis der Abrechnung.
+  utilities?: UtilityLine[]
   // Die Wohnung des Mietverhältnisses. Die Abrechnung zeigt `unitName` an; die Kennung braucht,
   // wer die Zeilen einer Wohnung zuordnet (etwa der Prüfkatalog).
   unitId: string

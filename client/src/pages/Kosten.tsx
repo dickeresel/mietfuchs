@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import type { AssessmentView, CostItem, CostKey, CostType, ExternalMeasure, HeatingPlant, Meter, MeterType, Reading, Settlement, Settings, SplitPreviewPart, Tenancy, Unit, UploadEntry } from '../types'
+import type { AssessmentView, CostItem, CostKey, CostType, UtilityKind, ExternalMeasure, HeatingPlant, Meter, MeterType, Reading, Settlement, Settings, SplitPreviewPart, Tenancy, Unit, UploadEntry } from '../types'
 import HeatingPeriodSelect from '../components/HeatingPeriodSelect'
 import { heatingItemPeriods, heatingTaxYear, itemsOfPeriod } from '../heatingSettlementView'
 import { plantOptions } from '../heatingForm'
@@ -367,7 +367,7 @@ export default function Kosten({ units: allUnits, settings, tenancies = [], focu
   const previousTypeCount = useMemo(() => costTypes.filter((t) => t.period === at.previous).length, [costTypes, at.previous])
   // Vorlagen aus dem Vorzeitraum mit der gleichnamigen eigenen Kostenart dieses Zeitraums.
   const withCostTypes = (rows: CarryRow[]): CarryRow[] => rows.map((r) => ({ ...r, costTypeId: carriedTypeId(r.source.costTypeId, costTypes, key) }))
-  async function saveCostType(id: string | null, body: { name: string; baseCategory: string }) {
+  async function saveCostType(id: string | null, body: { name: string; baseCategory: string; utility: UtilityKind | null }) {
     if (id) await api(`/api/cost-types/${id}`, { method: 'PUT', body: JSON.stringify(body) })
     else await api(withProperty('/api/cost-types', propertyId), { method: 'POST', body: JSON.stringify({ ...body, period: key }) })
     await Promise.all([loadCostTypes(), load()])

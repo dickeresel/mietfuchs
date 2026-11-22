@@ -1,4 +1,5 @@
 import type { CostItem, CostModel, HeatingModel, NotSettled, RentDueRule, SelfSupplyKind, Tenancy, Unit } from './types'
+import type { UtilityField } from './utilityPrepaymentForm'
 import { effectiveRentDue } from '../../shared/rentDue.ts'
 import { fmtDate, fmtEuro, parseEuro } from './api'
 import { usageAt } from '../../shared/unitUsage.ts'
@@ -280,7 +281,7 @@ export function prepaymentColumn(t: Pick<Tenancy, 'prepayments' | 'heatingPrepay
 
 // Die Pflichtangaben eines Mietverhältnisses (#346, Schritt 3), je mit Feld. Vorher stand für alle drei ein
 // Satz „Bitte Mieter, Wohnung und Einzugsdatum prüfen.“, der nicht sagte, welches Feld fehlt (UI-Durchsicht M5).
-export type TenancyField = 'tenantName' | 'unitId' | 'start' | 'end' | 'deposit' | 'contractDate' | 'iban' | 'rentDueDay' | ScheduleField | RentRowField
+export type TenancyField = 'tenantName' | 'unitId' | 'start' | 'end' | 'deposit' | 'contractDate' | 'iban' | 'rentDueDay' | ScheduleField | RentRowField | UtilityField
 // `stored`: Einzug und Auszug des gespeicherten Mietverhältnisses. Ein Auszug vor dem Einzug wird nur gemeldet, wenn
 // eines der beiden Daten neu oder geändert ist (krumm, nicht kaputt, wie bei der IBAN); der Server prüft ebenso.
 export function tenancyRequired(form: { tenantName: string; unitId: string; start: string; end?: string }, stored?: { start: string; end: string | null }): Problem<TenancyField>[] {

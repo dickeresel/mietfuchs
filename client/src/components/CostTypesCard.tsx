@@ -2,7 +2,8 @@
 // und Export, Grundart für die Rechnung. Anlegen und Bearbeiten im Seitenfenster, Entfernen mit Rückfrage, „Aus dem
 // Vorjahr übernehmen“ legt die Liste des Vorzeitraums an. Die Logik steht in costTypeForm.ts.
 import { useState } from 'react'
-import type { CostType } from '../types'
+import type { CostType, UtilityKind } from '../types'
+import { UTILITY_KINDS, UTILITY_LABELS } from '../utilityPrepaymentForm'
 import { CATEGORIES } from '../types'
 import { errorText } from '../api'
 import Card from './Card'
@@ -20,7 +21,7 @@ type Props = {
   types: readonly CostType[]
   previousCount: number
   closed: boolean
-  onSave: (id: string | null, body: { name: string; baseCategory: string }) => Promise<void>
+  onSave: (id: string | null, body: { name: string; baseCategory: string; utility: UtilityKind | null }) => Promise<void>
   onRemove: (id: string) => Promise<void>
   onCarry: () => Promise<void>
 }
@@ -38,7 +39,7 @@ export default function CostTypesCard({ label, previousLabel, types, previousCou
     if (problems.length > 0) return errors.report(problems)
     errors.set('')
     try {
-      await onSave(edit.id, { name: edit.draft.name.trim(), baseCategory: edit.draft.baseCategory })
+      await onSave(edit.id, { name: edit.draft.name.trim(), baseCategory: edit.draft.baseCategory, utility: edit.draft.utility || null })
       setEdit(null)
     } catch (e) {
       errors.show(errorText(e))
@@ -67,12 +68,13 @@ export default function CostTypesCard({ label, previousLabel, types, previousCou
       </p>
       {types.length > 0 && (
         <Table className="stacked" aria-label={`Kostenarten ${label}`}>
-          <thead><tr><th>Kostenart</th><th>Rechnet als</th><th className="num">Positionen</th><th><span className="sr-only">Aktionen</span></th></tr></thead>
+          <thead><tr><th>Kostenart</th><th>Rechnet als</th><th>Sparte</th><th className="num">Positionen</th><th><span className="sr-only">Aktionen</span></th></tr></thead>
           <tbody>
             {types.map((t) => (
               <tr key={t.id}>
                 <td data-label="Kostenart">{t.name}</td>
                 <td data-label="Rechnet als">{t.baseCategory}</td>
+                <td data-label="Sparte">{UTILITY_LABELS[t.utility ?? 'sonstige']}</td>
                 <td data-label="Positionen" className="num">{t.itemCount}</td>
                 <td data-label="Aktionen">
                   {!closed && (
@@ -103,6 +105,12 @@ export default function CostTypesCard({ label, previousLabel, types, previousCou
             <select value={edit.draft.baseCategory} disabled={edit.id !== null && (types.find((t) => t.id === edit.id)?.itemCount ?? 0) > 0}
               onChange={(e) => setEdit({ ...edit, draft: { ...edit.draft, baseCategory: e.target.value } })}>
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </Field>
+          <Field label="Sparte" hint="Für die Aufteilung der Vorauszahlung nach Strom, Heizung und Wasser (am Mietverhältnis). Ohne Sparte zählt die Kostenart zu den übrigen Nebenkosten.">
+            <select value={edit.draft.utility} onChange={(e) => setEdit({ ...edit, draft: { ...edit.draft, utility: UTILITY_KINDS.find((u) => u === e.target.value) ?? '' } })}>
+              <option value="">{UTILITY_LABELS.sonstige}</option>
+              {UTILITY_KINDS.map((u) => <option key={u} value={u}>{UTILITY_LABELS[u]}</option>)}
             </select>
           </Field>
           {edit.id !== null && (types.find((t) => t.id === edit.id)?.itemCount ?? 0) > 0 && (

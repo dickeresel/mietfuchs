@@ -8,7 +8,7 @@
 import { and, count, eq } from 'drizzle-orm'
 import { CATEGORIES } from '../../../shared/categories.ts'
 import { parsePeriodKey, periodOfKey, previousPeriod } from '../../../shared/period.ts'
-import type { CostType, PeriodKey } from '../../../shared/types.ts'
+import type { CostType, PeriodKey, UtilityKind } from '../../../shared/types.ts'
 import type { Executor } from './client.ts'
 import { CostTypeError, requirePeriods, rulesForProperty } from './repository.ts'
 import { costItems, costTypes } from './schema.ts'
@@ -26,6 +26,13 @@ function nameOf(v: unknown): string {
   const name = v.trim().replace(/\s+/g, ' ')
   if (name.length > COST_TYPE_NAME_MAX) throw new CostTypeError(`Der Name einer Kostenart hat höchstens ${COST_TYPE_NAME_MAX} Zeichen.`)
   return name
+}
+
+// Die Sparte der Kostenart für die Aufteilung der Vorauszahlung; leer oder `null` heißt „übrige“.
+function utilityOf(v: unknown): UtilityKind | null {
+  if (v === null || v === undefined || v === '') return null
+  if (typeof v !== 'string' || !(['strom', 'heizung', 'wasser'] as const).some((k) => k === v)) throw new CostTypeError('Die Sparte einer Kostenart ist Strom, Heizung, Wasser oder leer (übrige Nebenkosten).')
+  return v as UtilityKind
 }
 
 function baseOf(v: unknown): string {
@@ -53,7 +60,8 @@ async function findType(db: Executor, id: string): Promise<CostType> {
   const [row] = await db.select().from(costTypes).where(eq(costTypes.id, id))
   if (!row) throw new CostTypeError('Diese Kostenart gibt es nicht mehr.', 404)
   const [n] = await db.select({ n: count() }).from(costItems).where(eq(costItems.costTypeId, id))
-  return { ...row, itemCount: n?.n ?? 0 }
+  const { utility, ...rest } = row
+  return { ...rest, itemCount: n?.n ?? 0, ...(utility !== null ? { utility } : {}) }
 }
 
 async function nextPosition(db: Executor, propertyId: string, period: PeriodKey): Promise<number> {
@@ -66,7 +74,7 @@ export async function createCostType(db: Executor, id: string, propertyId: strin
   const name = nameOf(text(body, 'name'))
   const baseCategory = baseOf(text(body, 'baseCategory'))
   await requireFreeName(db, propertyId, period, name, null)
-  await db.insert(costTypes).values({ id, propertyId, period, name, baseCategory, position: await nextPosition(db, propertyId, period) })
+  await db.insert(costTypes).values({ id, propertyId, period, name, baseCategory, utility: utilityOf(text(body, 'utility')), position: await nextPosition(db, propertyId, period) })
   return findType(db, id)
 }
 
@@ -83,7 +91,8 @@ export async function updateCostType(db: Executor, id: string, body: unknown): P
     throw new CostTypeError(`An „${current.name}“ hängen ${current.itemCount === 1 ? 'eine Position' : `${current.itemCount} Positionen`}; die Grundart lässt sich dann nicht ändern. Legen Sie eine neue Kostenart an und ordnen Sie die Positionen dort zu.`, 409)
   }
   if (name !== current.name) await requireFreeName(db, current.propertyId, current.period, name, id)
-  await db.update(costTypes).set({ name, baseCategory, position }).where(eq(costTypes.id, id))
+  const utility = has(body, 'utility') ? utilityOf(text(body, 'utility')) : current.utility ?? null
+  await db.update(costTypes).set({ name, baseCategory, position, utility }).where(eq(costTypes.id, id))
   return findType(db, id)
 }
 
@@ -109,7 +118,7 @@ export async function carryOverCostTypes(db: Executor, propertyId: string, rawPe
   let created = 0
   for (const t of before) {
     if (present.has(t.name.toLocaleLowerCase('de-DE'))) continue
-    await db.insert(costTypes).values({ id: newId(), propertyId, period, name: t.name, baseCategory: t.baseCategory, position: position++ })
+    await db.insert(costTypes).values({ id: newId(), propertyId, period, name: t.name, baseCategory: t.baseCategory, utility: t.utility ?? null, position: position++ })
     created++
   }
   return { created, types: await readCostTypes(db, propertyId, period) }

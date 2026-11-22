@@ -1,12 +1,13 @@
 // Eigene Kostenarten (gewerbliche Abrechnung): die Entscheidungen des Seitenfensters und der Vorjahresübernahme, ohne
 // DOM prüfbar. Dieselben Prüfungen wie der Server (server/src/db/costTypes.ts).
-import type { CostType } from './types'
+import type { CostType, UtilityKind } from './types'
 import { CATEGORIES } from './types'
 import type { Problem } from './formProblems'
 
-export type CostTypeDraft = { name: string; baseCategory: string }
-export const EMPTY_COST_TYPE_DRAFT: CostTypeDraft = { name: '', baseCategory: 'Sonstige Betriebskosten' }
-export const costTypeDraftOf = (t: Pick<CostType, 'name' | 'baseCategory'>): CostTypeDraft => ({ name: t.name, baseCategory: t.baseCategory })
+// `utility`: die Sparte für die Aufteilung der Vorauszahlung, '' heißt übrige Nebenkosten.
+export type CostTypeDraft = { name: string; baseCategory: string; utility: UtilityKind | '' }
+export const EMPTY_COST_TYPE_DRAFT: CostTypeDraft = { name: '', baseCategory: 'Sonstige Betriebskosten', utility: '' }
+export const costTypeDraftOf = (t: Pick<CostType, 'name' | 'baseCategory' | 'utility'>): CostTypeDraft => ({ name: t.name, baseCategory: t.baseCategory, utility: t.utility ?? '' })
 export const COST_TYPE_NAME_MAX = 80
 
 const same = (a: string, b: string): boolean => a.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-DE') === b.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-DE')
