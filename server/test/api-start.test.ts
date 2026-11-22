@@ -944,7 +944,7 @@ test('Update-Hinweis: mit Zustimmung meldet der Server die neue Version', async 
     assert.equal(status.latest, '9.9.9')
     assert.equal(status.available, true)
     assert.equal(status.mode, 'npm') // der Test startet den Server mit node, ohne Programmdatei
-    assert.equal(status.releaseUrl, 'https://github.com/speedone/mietfuchs/releases/tag/v9.9.9')
+    assert.equal(status.releaseUrl, 'https://github.com/dickeresel/mietfuchs/releases/tag/v9.9.9')
     // Bis zum nächsten Tag kommt das gemerkte Ergebnis. „Jetzt prüfen" fragt neu, aber höchstens
     // einmal pro Minute; wann genau, prüft update.test.ts mit gestellter Uhr.
     await s.api('/api/update')

@@ -2,7 +2,7 @@
 //
 // GitHub wird durch einen echten lokalen HTTP-Server ersetzt, der die echte Antwort der
 // Releases-API ausliefert (fixtures/github-release-latest.json, abgespeichert von
-// /repos/speedone/mietfuchs/releases/latest). So prüfen die Tests die tatsächliche
+// /repos/dickeresel/mietfuchs/releases/latest). So prüfen die Tests die tatsächliche
 // Datenstruktur, und kein Test geht ins Internet.
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
@@ -10,7 +10,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parseVersion, isNewer, assetFor, createUpdateChecker, mayAskGitHub, desktopOfferFor, forOtherDevice } from '../src/update.ts'
+import { parseVersion, isNewer, assetFor, createUpdateChecker, mayAskGitHub, desktopOfferFor, forOtherDevice, UPDATE_REPO } from '../src/update.ts'
 import type { UpdateStatus } from '../../shared/types.ts'
 
 // Die Gestalt der abgespeicherten Antwort, so weit die Tests sie anfassen. update.ts beschreibt
@@ -20,7 +20,8 @@ type ReleaseAsset = { name: string, browser_download_url: string }
 type Release = { tag_name: string, html_url?: string, assets: ReleaseAsset[], draft?: boolean, prerelease?: boolean }
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const realResponse: Release = JSON.parse(fs.readFileSync(path.join(here, 'fixtures', 'github-release-latest.json'), 'utf8'))
+// Die echte Antwort stammt aus dem Originalprojekt; die Links zeigen beim Fork auf dessen Repo (`UPDATE_REPO`).
+const realResponse: Release = JSON.parse(fs.readFileSync(path.join(here, 'fixtures', 'github-release-latest.json'), 'utf8').replaceAll('speedone/mietfuchs', UPDATE_REPO))
 
 // Die echte Antwort, umgeschrieben auf eine angenommene neuere Version
 function releaseWith(tag: string, extra: Partial<Release> = {}): Release {
@@ -115,7 +116,7 @@ test('assetFor: wählt die Datei für das eigene Betriebssystem und die Architek
 test('assetFor: ARM-Programmdateien für Linux und Windows (#22), die bisherigen Namen bleiben', () => {
   // Ältere Versionen suchen ihre Datei unter dem bisherigen Namen, der darf sich nie ändern.
   const names = ['mietfuchs-win.exe', 'mietfuchs-win-arm64.exe', 'mietfuchs-linux.tar.gz', 'mietfuchs-linux-arm64.tar.gz']
-  const assets = names.map((name) => ({ name, browser_download_url: `https://github.com/speedone/mietfuchs/releases/download/v0.6.0/${name}` }))
+  const assets = names.map((name) => ({ name, browser_download_url: `https://github.com/dickeresel/mietfuchs/releases/download/v0.6.0/${name}` }))
   assert.equal(assetName(assets, 'linux', 'arm64'), 'mietfuchs-linux-arm64.tar.gz')
   assert.equal(assetName(assets, 'win32', 'arm64'), 'mietfuchs-win-arm64.exe')
   assert.equal(assetName(assets, 'linux', 'x64'), 'mietfuchs-linux.tar.gz')
@@ -169,7 +170,7 @@ const url = () => {
   // (null). Hier ist weder das eine noch das andere möglich, und wäre es doch, hilft die Ansage.
   const address = github.address()
   if (address === null || typeof address === 'string') assert.fail('der nachgebaute GitHub-Server lauscht nicht auf einem Port')
-  return `http://127.0.0.1:${address.port}/repos/speedone/mietfuchs/releases/latest`
+  return `http://127.0.0.1:${address.port}/repos/dickeresel/mietfuchs/releases/latest`
 }
 const serve = (body: unknown, status = 200, headers: http.OutgoingHttpHeaders = {}): http.RequestListener => (req, res) => {
   res.writeHead(status, { 'content-type': 'application/json', ...headers })
@@ -205,8 +206,8 @@ test('Mit Zustimmung: neuere Version mit passendem Download für Windows', async
   assert.equal(s.current, '0.4.0')
   assert.equal(s.latest, '0.5.0')
   assert.equal(s.available, true)
-  assert.equal(s.downloadUrl, 'https://github.com/speedone/mietfuchs/releases/download/v0.5.0/mietfuchs-win.exe')
-  assert.equal(s.releaseUrl, 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0')
+  assert.equal(s.downloadUrl, 'https://github.com/dickeresel/mietfuchs/releases/download/v0.5.0/mietfuchs-win.exe')
+  assert.equal(s.releaseUrl, 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0')
   assert.equal(s.error, null)
 })
 
@@ -287,14 +288,14 @@ test('Außerhalb der Programmdatei gibt es keinen Download, nur die Release-Seit
     assert.equal(s.available, true)
     assert.equal(s.mode, mode)
     assert.equal(s.downloadUrl, null)
-    assert.equal(s.releaseUrl, 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0')
+    assert.equal(s.releaseUrl, 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0')
   }
 })
 
 test('System ohne eigene Datei: Download führt zur Release-Seite', async () => {
   respond = serve(releaseWith('v0.5.0'))
   const s = await makeChecker({ platform: 'linux', arch: 'arm64' }).check({ consent: 'on' })
-  assert.equal(s.downloadUrl, 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0')
+  assert.equal(s.downloadUrl, 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0')
 })
 
 test('Vorabversion oder Entwurf gilt nicht als Update', async () => {
@@ -311,7 +312,7 @@ test('Läuft ein Release-Kandidat, ist die fertige Version gleicher Nummer ein U
   assert.equal(s.current, '0.9.0-rc.2')
   assert.equal(s.latest, '0.9.0')
   assert.equal(s.available, true)
-  assert.equal(s.downloadUrl, 'https://github.com/speedone/mietfuchs/releases/download/v0.9.0/mietfuchs-win.exe')
+  assert.equal(s.downloadUrl, 'https://github.com/dickeresel/mietfuchs/releases/download/v0.9.0/mietfuchs-win.exe')
 })
 
 test('Läuft ein Release-Kandidat, ist die ältere fertige Version kein Update (#166)', async () => {
@@ -364,7 +365,6 @@ test('Zustimmung zurückgezogen: das gemerkte Ergebnis wird nicht mehr gezeigt',
 test('Fehler bei GitHub bleiben still: kein Absturz, kein Hinweis', async () => {
   const failures = [
     serve({ message: 'API rate limit exceeded' }, 403),
-    serve({ message: 'Not Found' }, 404),
     serve('<html>kein JSON</html>'),
     serve(releaseWith('kaputt')),
   ]
@@ -374,6 +374,15 @@ test('Fehler bei GitHub bleiben still: kein Absturz, kein Hinweis', async () => 
     assert.equal(s.available, false)
     assert.ok(errorOf(s).length > 0)
   }
+})
+
+// Fork ohne eigenes Release: GitHub antwortet auf /releases/latest mit 404. Das heißt „nichts Neueres“, nicht Fehler.
+test('Noch kein Release im Repo (404): kein Fehler und kein Hinweis', async () => {
+  respond = serve({ message: 'Not Found' }, 404)
+  const s = await makeChecker().check({ consent: 'on', force: true })
+  assert.equal(s.available, false)
+  assert.equal(s.latest, null)
+  assert.equal(s.error, null)
 })
 
 test('Antwort ohne Nutzdaten (kein Objekt): klare Meldung statt eines kryptischen Fehlers', async () => {
@@ -395,7 +404,7 @@ test('Antwort mit unbrauchbarer Dateiliste: der Hinweis bleibt, nur der Download
     assert.equal(s.error, null, JSON.stringify(assets))
     assert.equal(s.latest, '0.5.0')
     assert.equal(s.available, true)
-    assert.equal(s.downloadUrl, 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0')
+    assert.equal(s.downloadUrl, 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0')
   }
 })
 
@@ -527,13 +536,13 @@ test('Links werden nur übernommen, wenn sie ins Mietfuchs-Repo auf GitHub zeige
   respond = serve(releaseWith('v0.5.0', { html_url: 'javascript:alert(1)' }))
   let s = await makeChecker().check({ consent: 'on' })
   assert.equal(s.releaseUrl, null)
-  assert.equal(s.downloadUrl, 'https://github.com/speedone/mietfuchs/releases/download/v0.5.0/mietfuchs-win.exe')
+  assert.equal(s.downloadUrl, 'https://github.com/dickeresel/mietfuchs/releases/download/v0.5.0/mietfuchs-win.exe')
 
   const foreign = releaseWith('v0.5.0')
   foreign.assets = foreign.assets.map((a) => ({ ...a, browser_download_url: `https://example.com/${a.name}` }))
   respond = serve(foreign)
   s = await makeChecker().check({ consent: 'on' })
-  assert.equal(s.downloadUrl, 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0')
+  assert.equal(s.downloadUrl, 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0')
 
   respond = serve(releaseWith('v0.5.0', { html_url: undefined }))
   s = await makeChecker({ mode: 'docker' }).check({ consent: 'on' })
@@ -553,17 +562,17 @@ test('Keine Antwort: die Abfrage gibt nach der Wartezeit auf', async () => {
 // Hinweis führt auf das passende Abbild, benannt wie package-desktop.mjs es nennt. Ohne passendes Abbild die
 // Release-Seite; unter Windows aktualisiert das Fenster selbst, dort ebenso die Release-Seite.
 test('Programmfenster auf dem Mac: das .dmg für Apple Silicon oder Intel, sonst die Release-Seite', async () => {
-  const dmg = (name: string) => ({ name, browser_download_url: `https://github.com/speedone/mietfuchs/releases/download/v0.5.0/${name}` })
+  const dmg = (name: string) => ({ name, browser_download_url: `https://github.com/dickeresel/mietfuchs/releases/download/v0.5.0/${name}` })
   respond = serve(releaseWith('v0.5.0', { assets: [...realResponse.assets, dmg('Mietfuchs-0.5.0-apple-silicon.dmg'), dmg('Mietfuchs-0.5.0-intel.dmg')] }))
   const silicon = await makeChecker({ mode: 'desktop', platform: 'darwin', arch: 'arm64' }).check({ consent: 'on' })
-  assert.equal(silicon.downloadUrl, 'https://github.com/speedone/mietfuchs/releases/download/v0.5.0/Mietfuchs-0.5.0-apple-silicon.dmg')
+  assert.equal(silicon.downloadUrl, 'https://github.com/dickeresel/mietfuchs/releases/download/v0.5.0/Mietfuchs-0.5.0-apple-silicon.dmg')
   const intel = await makeChecker({ mode: 'desktop', platform: 'darwin', arch: 'x64' }).check({ consent: 'on' })
-  assert.equal(intel.downloadUrl, 'https://github.com/speedone/mietfuchs/releases/download/v0.5.0/Mietfuchs-0.5.0-intel.dmg')
+  assert.equal(intel.downloadUrl, 'https://github.com/dickeresel/mietfuchs/releases/download/v0.5.0/Mietfuchs-0.5.0-intel.dmg')
   const windows = await makeChecker({ mode: 'desktop', platform: 'win32', arch: 'x64' }).check({ consent: 'on' })
   assert.equal(windows.downloadUrl, null)
   respond = serve(releaseWith('v0.5.0'))
   const missing = await makeChecker({ mode: 'desktop', platform: 'darwin', arch: 'arm64' }).check({ consent: 'on' })
-  assert.equal(missing.downloadUrl, 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0')
+  assert.equal(missing.downloadUrl, 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0')
 })
 
 // Läuft die Oberfläche auf einem anderen Gerät (Handy, Tablet, zweiter Rechner im Heimnetz), gilt die Datei des
@@ -572,8 +581,8 @@ test('Programmfenster auf dem Mac: das .dmg für Apple Silicon oder Intel, sonst
 test('forOtherDevice: ohne Download und ohne Umstiegshinweis, mit Vermerk', () => {
   const status: UpdateStatus = {
     enabled: true, current: '0.14.1', mode: 'binary', desktopOffer: 'windows', latest: '0.15.0', available: true,
-    releaseUrl: 'https://github.com/speedone/mietfuchs/releases/tag/v0.15.0',
-    downloadUrl: 'https://github.com/speedone/mietfuchs/releases/download/v0.15.0/mietfuchs-win.exe',
+    releaseUrl: 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.15.0',
+    downloadUrl: 'https://github.com/dickeresel/mietfuchs/releases/download/v0.15.0/mietfuchs-win.exe',
     checkedAt: '2026-11-02T08:00:00.000Z', error: null,
   }
   assert.deepEqual(forOtherDevice(status), { ...status, downloadUrl: null, desktopOffer: null, otherDevice: true })

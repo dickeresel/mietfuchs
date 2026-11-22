@@ -16,7 +16,7 @@ export const consentPending = (s: Settings | null, st: UpdateStatus | null): boo
 export const hintVisible = (st: UpdateStatus | null, s: Settings | null): boolean =>
   !!st && st.enabled && st.available && st.latest !== s?.updateDismissed
 
-export const RELEASES_URL = 'https://github.com/speedone/mietfuchs/releases/latest'
+export const RELEASES_URL = 'https://github.com/dickeresel/mietfuchs/releases/latest'
 
 // ---------- Umstieg auf das eigene Programmfenster (#517) ----------
 // Die Programmdatei gibt es ab 0.15 noch einige Releases weiter; unter Windows und macOS weist sie auf das neue
@@ -40,7 +40,7 @@ export type DesktopLink = { label: string; href: string; primary: boolean }
 // aus einer Antwort): releases/latest überspringt Vorabversionen, und der Store hat keine.
 export function desktopLinks(offer: 'windows' | 'macos', current: string): DesktopLink[] {
   if (isPrerelease(current)) {
-    const href = `https://github.com/speedone/mietfuchs/releases/tag/v${current}`
+    const href = `https://github.com/dickeresel/mietfuchs/releases/tag/v${current}`
     return [{ label: offer === 'windows' ? 'Installer herunterladen' : 'Neues Mietfuchs herunterladen', href, primary: true }]
   }
   // Der Store zuerst (Entscheidung des Herausgebers): Er wird mit jedem Release zugleich eingereicht, aus ihm kommen

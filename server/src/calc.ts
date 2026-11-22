@@ -5978,7 +5978,8 @@ export function computeSettlement(snapshot: Snapshot, options: SettlementOptions
     const name = item.costTypeId ? snapshot.costTypeNames?.[item.costTypeId] : undefined
     return name ? { costType: name } : {}
   }
-  const objectArea = snapshot.property?.totalAreaM2 ?? null
+  // Nur in der Abrechnung des Objekts: Eine getrennte Heizkostenabrechnung (Weg d) verteilt über die Wohnungen ihrer Anlage.
+  const objectArea = scope === 'heating' ? null : snapshot.property?.totalAreaM2 ?? null
   if (objectArea !== null && Math.abs(objectArea - basisArea) >= AREA_MISMATCH_M2) {
     warn('property.area-mismatch',
       `Am Objekt ist eine Gesamtfläche von ${fmtNum(objectArea)} m² eingetragen, die Einheiten der Abrechnung haben zusammen ${fmtNum(basisArea)} m². ` +

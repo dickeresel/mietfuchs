@@ -3390,6 +3390,21 @@ export async function dropEmptySource(tx: Executor, sourceId: string | undefined
   if ((rest?.n ?? 0) === 0) await tx.delete(costSources).where(eq(costSources.id, sourceId))
 }
 
+// Die eigene Kostenart eines Teils (gewerbliche Abrechnung): Eine Kostenart gilt je Zeitraum, der Teil bekommt die
+// gleichnamige seines Zeitraums (ohne Groß/Klein, wie `requireFreeName`); fehlt sie, wird sie dort mit derselben Grundart am
+// Ende der Liste angelegt. `null` ohne eigene Kostenart.
+export async function costTypeForPeriod(tx: Executor, typeId: string | null | undefined, period: PeriodKey, newId: () => string): Promise<string | null> {
+  if (!typeId) return null
+  const [type] = await tx.select().from(costTypes).where(eq(costTypes.id, typeId))
+  if (!type || type.period === period) return type ? type.id : null
+  const there = await tx.select().from(costTypes).where(and(eq(costTypes.propertyId, type.propertyId), eq(costTypes.period, period)))
+  const same = there.find((t) => t.name.toLocaleLowerCase('de-DE') === type.name.toLocaleLowerCase('de-DE'))
+  if (same) return same.id
+  const id = newId()
+  await tx.insert(costTypes).values({ id, propertyId: type.propertyId, period, name: type.name, baseCategory: type.baseCategory, position: there.reduce((a, t) => Math.max(a, t.position + 1), 0) })
+  return id
+}
+
 export type PartWrite = { period: PeriodKey; amountCents: number; labor35aCents: number | null; description: string; taxYear: number | null }
 
 // Schreibt die Teile einer Rechnung durch dieselbe Verschmelzung, denselben Wächter und dasselbe
@@ -3404,6 +3419,7 @@ export async function writeCostItemParts(tx: Executor, base: CostItem, parts: re
     const id = keepId !== null && i === keepAt ? keepId : newId()
     const merged = mergeCostItem(keepId !== null && i === keepAt ? base : { ...base, id }, {
       period: part.period, amountCents: part.amountCents, labor35aCents: part.labor35aCents, description: part.description, taxYear: part.taxYear,
+      costTypeId: await costTypeForPeriod(tx, base.costTypeId, part.period, newId),
     })
     const entity = sourceId === null ? merged : { ...merged, sourceId }
     await guardCostItem(tx, keepId !== null && i === keepAt ? base : null, entity, {}, guardOptions)
@@ -3433,7 +3449,8 @@ export async function rewriteCostItemFamily(tx: Executor, members: readonly Cost
   const chosen = exact.map((m) => m ?? take(unused[0]))
   const written: string[] = []
   for (const [i, part] of parts.entries()) {
-    const fields = { period: part.period, amountCents: part.amountCents, labor35aCents: part.labor35aCents, description: part.description, taxYear: part.taxYear }
+    const fields = { period: part.period, amountCents: part.amountCents, labor35aCents: part.labor35aCents, description: part.description, taxYear: part.taxYear,
+      costTypeId: await costTypeForPeriod(tx, first.costTypeId, part.period, newId) }
     const member = chosen[i]
     if (member !== undefined) {
       const entity = mergeCostItem(member, fields)

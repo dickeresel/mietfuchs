@@ -6,6 +6,12 @@ Alle nennenswerten Änderungen an Mietfuchs. Das Format orientiert sich an
 
 ## [Unveröffentlicht]
 
+### Geändert
+
+- Eigene Weiterentwicklung: Die Update-Prüfung (Server, Programmfenster) und die Links auf Releases, README und
+  Doku zeigen auf `dickeresel/mietfuchs` statt auf das Originalprojekt; Versionen des Originals werden nicht mehr
+  angeboten. Solange das Repo kein Release hat, meldet die Prüfung nichts und keinen Fehler.
+
 ### Hinzugefügt
 
 - Gesamtfläche des Objekts: Am Objekt lässt sich die Gesamtfläche in m² eintragen, wie sie eine gewerbliche
@@ -19,7 +25,8 @@ Alle nennenswerten Änderungen an Mietfuchs. Das Format orientiert sich an
   übernehmen“. Jede hat eine Grundart aus der Liste von Mietfuchs, nach der gerechnet wird (Schlüsselvorschlag,
   Heizung, Strom, Wasser, Anlage V); auf Abrechnung, Anschreiben und Export steht ihr Name (JSON `costType`, CSV in
   der Spalte „Kostenart“). Eine Kostenart mit Positionen lässt sich nicht entfernen und ihre Grundart nicht ändern;
-  eine Position mit eigener Kostenart wird nicht nach Tagen auf zwei Zeiträume aufgeteilt, und den Rhythmus des
+  beim Aufteilen einer Rechnung über zwei Zeiträume bekommt jeder Teil die gleichnamige Kostenart seines Zeitraums
+  (fehlt sie, wird sie angelegt), und den Rhythmus des
   Abrechnungszeitraums wechselt ein Objekt mit eigenen Kostenarten noch nicht. Ohne eigene Kostenarten ändert sich
   nichts.
 - Erste Schritte: Die neue Anleitung „Die erste Abrechnung von Anfang bis Ende“ führt von den Einstellungen über

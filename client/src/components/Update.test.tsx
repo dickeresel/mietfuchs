@@ -14,11 +14,11 @@ const settings = (patch: Partial<Settings> = {}): Settings => ({
   ollamaUrl: '', ollamaModel: '', ...patch,
 })
 
-const download = (fileName: string) => `https://github.com/speedone/mietfuchs/releases/download/v0.5.0/${fileName}`
+const download = (fileName: string) => `https://github.com/dickeresel/mietfuchs/releases/download/v0.5.0/${fileName}`
 
 const status = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
   enabled: true, current: '0.4.0', mode: 'binary', desktopOffer: null, latest: '0.5.0', available: true,
-  releaseUrl: 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0',
+  releaseUrl: 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0',
   downloadUrl: download('mietfuchs-win.exe'),
   checkedAt: '2026-09-19T08:00:00.000Z', error: null, ...patch,
 })
@@ -124,7 +124,7 @@ test('Hinweis führt bei jeder Betriebsart zur Anleitung, nicht direkt zum Downl
     fireEvent.click(screen.getByRole('button', { name: 'So aktualisieren Sie' }))
     expect(showGuide).toHaveBeenCalled()
     const whatsNew = screen.getByRole('link', { name: 'Was ist neu?' })
-    expect(whatsNew.getAttribute('href')).toBe('https://github.com/speedone/mietfuchs/releases/tag/v0.5.0')
+    expect(whatsNew.getAttribute('href')).toBe('https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0')
     expect(whatsNew.getAttribute('target')).toBe('_blank')
     cleanup()
   }
@@ -141,7 +141,7 @@ test('„Später" merkt sich genau diese Version', async () => {
 // ---------- Umstieg auf das Programmfenster (#517) ----------
 
 // Links, die eine Antwort von GitHub vorschlüge: Der Hinweis darf keinen davon übernehmen.
-const foreign = { releaseUrl: 'https://github.com/speedone/mietfuchs/releases/tag/v9.9.9', downloadUrl: download('mietfuchs-win.exe') }
+const foreign = { releaseUrl: 'https://github.com/dickeresel/mietfuchs/releases/tag/v9.9.9', downloadUrl: download('mietfuchs-win.exe') }
 
 test('Umstieg unter Windows: Store und Installer aus festen Adressen, die Schritte und das Handy', () => {
   render(<DesktopHint status={status({ desktopOffer: 'windows', ...foreign })} onDismissed={vi.fn()} />)
@@ -181,7 +181,7 @@ test('Umstieg auf dem Mac: ein Knopf zur Release-Seite, das Abbild für Apple Si
   expect(screen.getByRole('link', { name: 'Neues Mietfuchs herunterladen' }).getAttribute('href')).toBe(RELEASES_URL)
   expect(screen.queryByRole('link', { name: /Microsoft Store/ })).toBeNull()
   // Der Mac-Abschnitt des README (#macos)
-  expect(screen.getByRole('link', { name: 'README' }).getAttribute('href')).toBe('https://github.com/speedone/mietfuchs#macos')
+  expect(screen.getByRole('link', { name: 'README' }).getAttribute('href')).toBe('https://github.com/dickeresel/mietfuchs#macos')
   const steps = screen.getAllByRole('listitem').map((li) => li.textContent ?? '')
   expect(steps).toHaveLength(4)
   expect(steps[0]).toMatch(/apple-silicon\.dmg/)
@@ -343,7 +343,7 @@ test('Einstellungen: die Anleitung nennt die Datei für ARM, nicht die für x64 
 })
 
 test('Einstellungen: ohne passende Datei öffnet die Release-Seite in neuem Tab', async () => {
-  response = status({ downloadUrl: 'https://github.com/speedone/mietfuchs/releases/tag/v0.5.0' })
+  response = status({ downloadUrl: 'https://github.com/dickeresel/mietfuchs/releases/tag/v0.5.0' })
   render(<Card s={settings({ updateCheck: 'on' })} />)
   const link = await waitFor(() => screen.getByRole('link', { name: 'Zur Release-Seite' }))
   expect(link.getAttribute('target')).toBe('_blank')

@@ -81,4 +81,4 @@ export function updaterText(state: UpdaterState): string {
 
 // Die Release-Seite einer Version, für „Was ist neu?“; die Adresse ist fest, die Version kommt vom Fenster
 export const releaseNotesUrl = (version: string): string =>
-  `https://github.com/speedone/mietfuchs/releases/tag/v${encodeURIComponent(version)}`
+  `https://github.com/dickeresel/mietfuchs/releases/tag/v${encodeURIComponent(version)}`

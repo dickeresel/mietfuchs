@@ -503,7 +503,8 @@ export async function listenInTestRange(server: http.Server): Promise<number> {
 // ---------- Update-Hinweis ----------
 // Die abgespeicherte echte Antwort der Releases-API, umgeschrieben auf eine höhere Version,
 // damit der Hinweis anspringt.
-export const releaseFixture = fs.readFileSync(path.join(serverRoot, 'test', 'fixtures', 'github-release-latest.json'), 'utf8')
+// Die echte Antwort des Originalprojekts, mit den Links auf das Repo dieses Forks (`UPDATE_REPO` in src/update.ts).
+export const releaseFixture = fs.readFileSync(path.join(serverRoot, 'test', 'fixtures', 'github-release-latest.json'), 'utf8').replaceAll('speedone/mietfuchs', 'dickeresel/mietfuchs')
 export const releaseJson = releaseFixture.replaceAll(JSON.parse(releaseFixture).tag_name as string, 'v9.9.9')
 
 export async function fakeGitHub() {
@@ -515,7 +516,7 @@ export async function fakeGitHub() {
     res.end(releaseJson)
   })
   await listening(server, '127.0.0.1')
-  const url = `http://127.0.0.1:${portOf(server)}/repos/speedone/mietfuchs/releases/latest`
+  const url = `http://127.0.0.1:${portOf(server)}/repos/dickeresel/mietfuchs/releases/latest`
   return { url, requests, stop: () => server.close() }
 }
 

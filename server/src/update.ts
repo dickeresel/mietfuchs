@@ -7,7 +7,9 @@
 // Möglichkeiten mit Vor- und Nachteilen stehen in Issue #20.
 import type { UpdateStatus } from '../../shared/types.ts'
 
-export const UPDATE_URL = 'https://api.github.com/repos/speedone/mietfuchs/releases/latest'
+// Das Repo, dessen Releases dieser Fork anbietet (eigene Weiterentwicklung, keine Updates aus dem Originalprojekt).
+export const UPDATE_REPO = 'dickeresel/mietfuchs'
+export const UPDATE_URL = `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`
 
 const ONE_MINUTE = 60 * 1000
 const ONE_HOUR = 60 * ONE_MINUTE
@@ -23,7 +25,7 @@ const VERSION = new RegExp(
 
 // Links aus der Antwort landen in der Oberfläche. Übernommen wird nur, was ins Mietfuchs-Repo
 // auf GitHub zeigt, auch wenn NKA_UPDATE_URL die Abfrage anderswohin lenkt.
-const REPO_URL = 'https://github.com/speedone/mietfuchs/'
+const REPO_URL = `https://github.com/${UPDATE_REPO}/`
 const trusted = (link: string | undefined): string | null => (typeof link === 'string' && link.startsWith(REPO_URL) ? link : null)
 
 const TOO_MANY_REQUESTS =
@@ -246,6 +248,9 @@ export function createUpdateChecker({
       headers: { accept: 'application/vnd.github+json', 'user-agent': `Mietfuchs/${currentVersion}` },
       signal: AbortSignal.timeout(timeoutMs),
     })
+    // Ein Repo ohne Release (der Fork, bevor er das erste veröffentlicht) antwortet mit 404: Es gibt nichts Neueres,
+    // und das ist kein Fehler.
+    if (res.status === 404) return
     if (!res.ok) {
       const until = rateLimitUntil(res, now())
       if (until) throw Object.assign(new Error(TOO_MANY_REQUESTS), { until })

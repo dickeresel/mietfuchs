@@ -103,7 +103,7 @@ test('Links: eigene Seiten im Fenster, http, https und mailto im Standardprogram
   const origin = 'http://127.0.0.1:17517'
   assert.equal(linkTarget('/uploads/beleg.pdf', origin), 'window')
   assert.equal(linkTarget('http://127.0.0.1:17517/abrechnung', origin), 'window')
-  assert.equal(linkTarget('https://github.com/speedone/mietfuchs', origin), 'external')
+  assert.equal(linkTarget('https://github.com/dickeresel/mietfuchs', origin), 'external')
   assert.equal(linkTarget('mailto:anna@example.org', origin), 'external')
   // Ein anderer Port ist eine andere Seite
   assert.equal(linkTarget('http://127.0.0.1:3001/', origin), 'external')

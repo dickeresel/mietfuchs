@@ -435,6 +435,17 @@ vorverteilt (#95), die Flexibilität steckt in der Kostenposition (#94).
 - **Oberfläche**: `PropertyProvider` (client/src/property.tsx), Abrufe mit `withProperty`. Nach dem
   Wechsel in ein Objekt ohne Wohnungen steht oben „Zurück zu …“ (#157, client/src/propertyView.ts).
 
+## Gewerbliche Abrechnung: Gesamtfläche und eigene Kostenarten
+
+- **Gesamtfläche** `Property.totalAreaM2` (Schritte 0105/0106): verteilt wird weiter über die Einheiten; `property.area-mismatch`
+  (nur in der Abrechnung des Objekts, nicht bei Weg d) nennt eine Abweichung. Eingefroren als `objectAreaM2`, im Export
+  `property.totalAreaM2` und `centsPerM2` (Schlüssel Fläche).
+- **Eigene Kostenarten** ([db/costTypes.ts](db/costTypes.ts), Schritt 0107): Name und Grundart je Objekt und Zeitraum; die
+  Position trägt die Grundart als `category` (`guardCostType`). Zeilen nennen den Namen (`SettlementRow.costType`, über
+  `Snapshot.costTypeNames`). Aufteilen gibt jedem Teil die gleichnamige Kostenart seines Zeitraums (`costTypeForPeriod`,
+  legt sie bei Bedarf an). Mit Positionen kein Entfernen und kein Wechsel der Grundart (409); Wechsel des Rhythmus gesperrt.
+  Tests: api-kostenarten.test.ts, calc-objektflaeche.test.ts.
+
 ## Abrechnungszeitraum (#208)
 
 Ein Objekt rechnet im Kalenderjahr oder in eigenem Rhythmus ab. **Der Zeitraum ist ein eigener

@@ -1172,6 +1172,7 @@ export function heatingSnapshotFor(source: Parameters<typeof snapshotFor>[0], pr
     ...snapshotOfPeriod({ ...narrowed, costItems: mine, closedSettlements: [] }, h, previousPeriod(rules, h)),
     propertyId,
     property: found ? { kind: found.kind, cableBuiltBeforeDec2021: found.cableBuiltBeforeDec2021 ?? null, tightMarket: found.tightMarket ?? null, tightMarketFrom: found.tightMarketFrom ?? null, tightMarketTo: found.tightMarketTo ?? null, state: found.state ?? null, ...(found.totalAreaM2 != null ? { totalAreaM2: found.totalAreaM2 } : {}) } : null,
+    ...costTypeNamesOf(source.costTypes, propertyId),
     heatingPlants: plants,
     co2Statements: (source.co2Statements ?? []).filter((c) => c.plantId === plantId),
     heatingPeriodRows: (source.heatingPeriodRows ?? []).filter((r) => r.plantId === plantId || line.has(r.plantId)),
