@@ -266,6 +266,7 @@ export async function readTenancies(db: Executor): Promise<Tenancy[]> {
     ...(t.halfSplitNoticeOn === null ? {} : { halfSplitNoticeOn: t.halfSplitNoticeOn }),
     // An Angehörige vermietet (#96 PR 2); nur „ja“, die db.json kennt das Feld nicht.
     ...(t.relative === true ? { relative: true } : {}),
+    ...(t.commercial === true ? { commercial: true } : {}),
     // Fälligkeit der Miete (#334); nur mit Wert, die db.json kennt die Felder nicht, und fehlend heißt gesetzlich.
     ...(t.rentDue === null ? {} : { rentDue: t.rentDue }),
     ...(t.rentDueDay === null ? {} : { rentDueDay: t.rentDueDay }),

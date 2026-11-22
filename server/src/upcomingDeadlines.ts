@@ -53,7 +53,7 @@ export const CALIBRATION_LEAD_MONTHS = 12
 const SETTLEMENT_LOOKBACK_MONTHS = 36
 const CALIBRATION_GRACE_MONTHS = 12
 
-export type UpcomingTenancy = Pick<Tenancy, 'id' | 'unitId' | 'tenantName' | 'start' | 'end' | 'costModel' | 'heatingModel' | 'depositCents' | 'depositStatus' | 'baseRents' | 'rentKind' | 'rentIncreaseExcluded'>
+export type UpcomingTenancy = Pick<Tenancy, 'id' | 'unitId' | 'tenantName' | 'start' | 'end' | 'costModel' | 'heatingModel' | 'depositCents' | 'depositStatus' | 'baseRents' | 'rentKind' | 'rentIncreaseExcluded'> & Partial<Pick<Tenancy, 'commercial'>>
 export type UpcomingUnit = Pick<Unit, 'id' | 'name' | 'areaM2'>
 export type UpcomingRentIncrease = Pick<RentIncrease, 'id' | 'tenancyId' | 'kind' | 'status' | 'receivedOn' | 'effectiveFrom'>
 export type UpcomingMeter = Pick<Meter, 'id' | 'name' | 'type' | 'calibratedUntil'>
@@ -95,7 +95,8 @@ export function upcomingDeadlines(input: UpcomingInput, today: string): Upcoming
   if (first !== null && compareText(first, today) < 0) {
     for (const p of periodsBetween(input.rules, first, today)) {
       if (compareText(p.to, today) >= 0) continue
-      const needed = input.tenancies.some((t) => settles(t) && compareText(t.start, p.to) <= 0 && (t.end === null || compareText(t.end, p.from) >= 0))
+      // Die Frist des § 556 Abs. 3 BGB gilt nur für Wohnraum: Mit nur gewerblichen Mietverhältnissen kein Eintrag.
+      const needed = input.tenancies.some((t) => settles(t) && t.commercial !== true && compareText(t.start, p.to) <= 0 && (t.end === null || compareText(t.end, p.from) >= 0))
       if (!needed) continue
       const closed = input.closed.find((c) => c.period === p.key)
       if (closed?.sentAt) continue
@@ -113,6 +114,8 @@ export function upcomingDeadlines(input: UpcomingInput, today: string): Upcoming
     if (!c.sentAt || compareText(c.sentAt, today) > 0) continue
     const p = periodOfKey(input.rules, c.period)
     if (!p) continue
+    // Die Einwendungsfrist (§ 556 Abs. 3 Satz 5 BGB) ebenso nur mit einem Wohnraummietverhältnis im Zeitraum.
+    if (!input.tenancies.some((t) => settles(t) && t.commercial !== true && compareText(t.start, p.to) <= 0 && (t.end === null || compareText(t.end, p.from) >= 0))) continue
     const end = objectionDeadline(c.sentAt)
     if (compareText(end, today) < 0 || compareText(end, until) > 0) continue
     items.push({ kind: 'objection', id: `objection:${c.period}`, date: end, period: c.period, label: periodLabel(p), sentAt: c.sentAt })
@@ -149,6 +152,8 @@ const monthOf = (day: string): string => day.slice(0, 7)
 function rentItems(input: UpcomingInput, today: string, until: string, items: UpcomingDeadline[]): void {
   for (const t of input.tenancies) {
     if (t.end !== null && compareText(t.end, today) < 0) continue
+    // Gewerbe: keine Mieterhöhung nach §§ 557 ff. BGB, also auch keine Erinnerung daran.
+    if (t.commercial === true) continue
     const unit = input.units.find((u) => u.id === t.unitId)
     if (!unit) continue
     const increases = input.rentIncreases.filter((x) => x.tenancyId === t.id)

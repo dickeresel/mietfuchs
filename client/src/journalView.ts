@@ -202,6 +202,7 @@ const FIELD_LABELS: Record<string, string> = {
   building_application_on: 'Bauantrag vom',
   completed_on: 'Fertiggestellt am',
   relative: 'An Angehörige zu Wohnzwecken vermietet',
+  commercial: 'Gewerblich vermietet',
   // #334: Fälligkeit der Miete am Mietverhältnis, wie im Formular
   rent_due: 'Fälligkeit der Miete',
   rent_due_day: 'Tag des Monats',
@@ -331,7 +332,7 @@ const TABLE_ENUM_LABELS: Record<string, Record<string, Record<string, string>>> 
   },
 }
 
-const BOOLEAN_COLUMNS = new Set(['labor_guessed', 'participates', 'self_used', 'replacement', 'vision', 'participants_limited', 'units_limited', 'estimated', 'unit_ids_all', 'behind_all', 'relative', 'first_rent_at_start', 'reversal', 'created', 'rent_increase_excluded', 'rent_cap_reduced'])
+const BOOLEAN_COLUMNS = new Set(['labor_guessed', 'participates', 'self_used', 'replacement', 'vision', 'participants_limited', 'units_limited', 'estimated', 'unit_ids_all', 'behind_all', 'relative', 'first_rent_at_start', 'reversal', 'created', 'rent_increase_excluded', 'rent_cap_reduced', 'commercial'])
 
 export const tableLabel = (table: string): string => TABLE_LABELS[table] ?? table
 // Spalten, die je Tabelle etwas anderes bedeuten: `source` ist an der Auswertung die Herkunft (KI oder E-Rechnung, #189),

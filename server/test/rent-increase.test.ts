@@ -630,3 +630,9 @@ test('Mieterhöhung: Eingabe eines Betrags über der Obergrenze oder außerhalb 
   const ok = rentIncreaseRequestOf({ kind: 'comparison', requestedCents: AMOUNT_MAX_CENTS })
   assert.ok(!('error' in ok))
 })
+
+test('Gewerbe: ein gewerbliches Mietverhältnis sperrt die Mieterhöhung mit Satz (§§ 557 ff. BGB nur für Wohnraum)', () => {
+  const p = plan(comparison({ receivedOn: '2026-11-20' }), tenancyOf({ commercial: true }))
+  assert.equal(p.state, 'blocked')
+  assert.ok(said(p, /als gewerblich gekennzeichnet/))
+})

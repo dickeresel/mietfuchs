@@ -76,6 +76,8 @@ type TenancyForm = {
   contractDate: string
   // An Angehörige vermietet, für die Steuer (#96 PR 2, Anlage V Zeile 10)
   relative: boolean
+  // Gewerblich vermietet (gewerbliche Abrechnung)
+  commercial: boolean
   // Fälligkeit der Miete laut Vertrag (#334)
   rentDue: RentDueForm
   // Art der Miete und Ausschluss von Erhöhungen (#191); '' nicht angegeben.
@@ -107,7 +109,7 @@ const DEPOSIT_FORM_OPTIONS: readonly { value: DepositForm | ''; label: string }[
 
 // Leere erweiterte Mieter-Felder - bei „neu“ und (mit Werten) beim Bearbeiten verwendet
 const EMPTY_TENANCY_EXTRA = {
-  email: '', phone: '', correspondenceAddress: '', letterSalutation: '', iban: '', contractDate: '', relative: false, deposit: '', depositStatus: 'offen' as DepositStatus, depositForm: '' as DepositForm | '', notes: '',
+  email: '', phone: '', correspondenceAddress: '', letterSalutation: '', iban: '', contractDate: '', relative: false, commercial: false, deposit: '', depositStatus: 'offen' as DepositStatus, depositForm: '' as DepositForm | '', notes: '',
   costModel: 'settlement' as CostModel, heatingModel: 'settlement' as HeatingModel, selfSupplyKind: '' as SelfSupplyKind | '',
   flatRates: [] as { from: string; amount: string }[],
   heatingPrepayments: [] as { from: string; amount: string }[],
@@ -156,6 +158,7 @@ function tenancyToForm(t: Tenancy): TenancyForm {
     iban: ibanToInput(t.iban),
     contractDate: t.contractDate ?? '',
     relative: t.relative === true,
+    commercial: t.commercial === true,
     rentDue: rentDueFormOf(t),
     rentKind: t.rentKind ?? '',
     rentIncreaseExcluded: exclusionOf(t.rentIncreaseExcluded),
@@ -488,6 +491,7 @@ export default function Stammdaten({ units, tenancies, settings, reload, focus, 
       contractDate: tenForm.contractDate || null,
       // #96 PR 2: gespeichert nur „ja“; „nein“ ist das bisherige Verhalten.
       relative: tenForm.relative,
+      commercial: tenForm.commercial,
       // #334: nur, was sich an der Fälligkeit geändert hat.
       ...rentDueBody(tenForm.rentDue, tenancies.find((t) => t.id === tenForm.id)),
       // #191: Art der Miete und Ausschluss; nicht angegeben ist null.
@@ -1107,6 +1111,11 @@ export default function Stammdaten({ units, tenancies, settings, reload, focus, 
                 <label className="checkline">
                   <input type="checkbox" checked={tenForm.relative} onChange={(e) => setTenForm({ ...tenForm, relative: e.target.checked })} />
                   <span>An Angehörige zu Wohnzwecken vermietet (für die Steuer, siehe <Term id="cheapRent">verbilligte Vermietung</Term>)</span>
+                </label>
+                {/* Gewerbliche Abrechnung: Regeln nur für Wohnraum entfallen (Kautionsgrenze, Mieterhöhung, § 556c, Fristen im Cockpit). */}
+                <label className="checkline">
+                  <input type="checkbox" checked={tenForm.commercial} onChange={(e) => setTenForm({ ...tenForm, commercial: e.target.checked })} />
+                  <span>Gewerblich vermietet (Regeln nur für Wohnraum entfallen: Höchstgrenze der Kaution, Mieterhöhung nach §§ 557 ff. BGB, Fristen nach § 556 Abs. 3 BGB im Cockpit)</span>
                 </label>
                 <Field label="Kaution €" hint={depositLimitHint(tenForm) ?? undefined} {...tenErrors.field('deposit')}>
                   <input value={tenForm.deposit} inputMode="decimal" placeholder="z. B. 2.400,00" onChange={(e) => setTenForm({ ...tenForm, deposit: e.target.value })} />

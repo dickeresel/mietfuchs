@@ -10648,7 +10648,8 @@ export function computeSettlement(snapshot: Snapshot, options: SettlementOptions
   // Umstellung vor der ersten Fassung erkennt Mietfuchs am Beginn dieser Fassung, nicht an einem Fehler des
   // Registers; der Rechtswert wird nur gefragt, wenn der Hinweis kommt.
   const switchFrom = onlyVersion(bgbHeatDeliverySwitch).validFrom ?? ''
-  for (const f of switchFindings(plants, items, snapshot.tenancies.filter((t) => statements.has(t.id)), snapshot.units)) {
+  // § 556c BGB gilt nur für Wohnraum: Gewerbliche Mietverhältnisse zählen für den Hinweis nicht.
+  for (const f of switchFindings(plants, items, snapshot.tenancies.filter((t) => statements.has(t.id) && t.commercial !== true), snapshot.units)) {
     const rule = f.since >= switchFrom ? law(bgbHeatDeliverySwitch, { date: f.since }, lawLog) : null
     warn('heating.contracting', switchText(f, rule, fmtDay, switchFrom), { kind: 'heatingPlant', id: f.plantId })
   }

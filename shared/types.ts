@@ -243,6 +243,10 @@ export type Tenancy = {
   // An Angehörige zu Wohnzwecken vermietet (#96, Anlage V Zeile 10, Kennzahl 62). Fehlt es, heißt das „nein“, also das
   // bisherige Verhalten; gespeichert wird nur `true`. Die Abrechnung liest es nicht.
   relative?: boolean
+  // Gewerblich vermietet (gewerbliche Abrechnung): Regeln, die nur für Wohnraum gelten, entfallen dann (Höchstgrenze der
+  // Kaution § 551, Mieterhöhung §§ 557 ff., Umstellung auf Wärmelieferung § 556c, Abrechnungs- und Einwendungsfrist
+  // § 556 Abs. 3 BGB im Cockpit). Fehlt es, heißt das „nein“; gespeichert wird nur `true`. An der Rechnung ändert es nichts.
+  commercial?: boolean
   // Fälligkeit der Miete laut Mietvertrag (#334, Entwurf E1). Fehlt sie, gilt das Gesetz: zu Beginn, spätestens am dritten
   // Werktag (§ 556b Abs. 1 BGB), für ein am 01.09.2001 bestehendes Mietverhältnis nach Ablauf des Monats (Art. 229 § 3
   // Abs. 1 Nr. 7 EGBGB). `rentDueDay` (1 bis 31) nur bei `dayOfMonth`. `firstRentAtStart`: die erste Miete ist schon bei

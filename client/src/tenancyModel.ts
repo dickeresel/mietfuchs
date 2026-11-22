@@ -442,7 +442,10 @@ export function depositLimitHint(form: {
   baseRents: readonly { from: string; amount: string }[]
   costModel: CostModel
   heatingModel: HeatingModel
+  commercial?: boolean
 }): string | null {
+  // Gewerblich vermietet: keine Höchstgrenze nach § 551 BGB.
+  if (form.commercial === true) return null
   const depositCents = parseEuro(form.deposit)
   if (form.deposit.trim() === '' || depositCents === null || !/^\d{4}-\d{2}-\d{2}$/.test(form.start)) return null
   const baseRents: { from: string; monthlyCents: number }[] = []

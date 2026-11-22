@@ -193,3 +193,15 @@ test('Durchsicht B1: Anleitung zur Kaution nennt „Demnächst fällig“ und �
   assert.match(text, /„Demnächst fällig“/)
   assert.match(text, /„Kaution abrechnen“/)
 })
+
+// ---------- Gewerblich vermietet ----------
+
+test('Gewerbe: nur gewerbliche Mietverhältnisse ergeben keine Abrechnungs- und Einwendungsfrist (§ 556 Abs. 3 BGB gilt nur für Wohnraum)', () => {
+  const gewerbe = input({ tenancies: [{ ...tenancy(), commercial: true }] })
+  assert.equal(kinds(upcomingDeadlines(gewerbe, '2026-11-20').items, 'settlement').length, 0)
+  const versendet = input({ tenancies: [{ ...tenancy(), commercial: true }], closed: [{ period: key('2025-01'), sentAt: '2026-02-10' }] })
+  assert.equal(kinds(upcomingDeadlines(versendet, '2026-11-20').items, 'objection').length, 0)
+  // Mit einem Wohnraummietverhältnis daneben bleibt die Frist.
+  const gemischt = input({ tenancies: [{ ...tenancy(), commercial: true }, { ...tenancy(), id: 't2' }] })
+  assert.equal(kinds(upcomingDeadlines(gemischt, '2026-11-20').items, 'settlement').length, 1)
+})

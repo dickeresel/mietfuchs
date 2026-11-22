@@ -391,7 +391,9 @@ const NOT_IN_DB_JSON = new Set(['period', 'propertyId', 'mea', 'externalMeasure'
   // Die Gesamtfläche des Objekts (gewerbliche Abrechnung) kennt die db.json nicht; die Rundreise prüft api-objekte.test.ts.
   'totalAreaM2',
   // Eigene Kostenarten kennt die db.json nicht; die Rundreise prüft api-kostenarten.test.ts.
-  'costTypeId'])
+  'costTypeId',
+  // Gewerblich vermietet kennt die db.json nicht; die Rundreise prüft api-kostenarten.test.ts.
+  'commercial'])
 
 test('Rundreise: die Probe belegt jede Spalte des Schemas', () => {
   // Der Wächter über dem Wächter. Der Test darunter kann nur finden, was in der Probe steht;
