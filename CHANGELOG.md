@@ -14,6 +14,10 @@ Alle nennenswerten Änderungen an Mietfuchs. Das Format orientiert sich an
 
 ### Hinzugefügt
 
+- Aufteilung der Gesamtkosten nach Kostenarten: In einer gewerblichen Abrechnung (mit Gesamtfläche des Objekts oder
+  eigenen Kostenarten) steht in der Abrechnung jedes Mieters eine Tabelle wie das Formular „Aufteilung der Gesamtkosten
+  für Ihr Mietobjekt“: je Kostenart Schlüssel, Gesamtkosten, Einheiten, Betrag je Einheit, Ihre Einheiten und Ihr
+  Anteil, auch für eigene Kostenarten ohne Kosten des Jahres. Sie wird mitgedruckt; der Anteil ist der der Abrechnung.
 - Vorauszahlung je Sparte: Am Mietverhältnis lassen sich die Anteile der Vorauszahlung für Strom, Heizung und Wasser
   eintragen, je ab Monat (Stammdaten, „Vorauszahlung je Sparte“, Schritte 0108/0109); eigene Kostenarten bekommen eine
   Sparte, ohne eigene Kostenart zählen Heizung und Warmwasser zur Heizung und Wasser/Abwasser zum Wasser. Die

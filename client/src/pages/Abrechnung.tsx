@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useId, useRef, useState } from 'react'
 import { startPrint } from '../printJob'
-import type { CostItem, HeatingSettlementInfo, LetterTemplates, Notice, NoticeSubject, PeriodKey, Settings, Settlement, SettlementRow, Statement, Tenancy, TenancyLetter, Unit, UploadEntry } from '../types'
+import type { CostItem, CostType, HeatingSettlementInfo, LetterTemplates, Notice, NoticeSubject, PeriodKey, Settings, Settlement, SettlementRow, Statement, Tenancy, TenancyLetter, Unit, UploadEntry } from '../types'
 import {
   heatingChoices, heatingOnlyNote, heatingOverridesWith, prepaymentLabel, prepaymentSplit, recommendedDeadlineText, settlementPaths, settlementTitle, totalLabel,
 } from '../heatingSettlementView'
@@ -69,6 +69,7 @@ import PrepaymentStepsCard from '../components/PrepaymentStepsCard'
 import { sentMonthLines } from '../prepaymentSteps'
 import { asTemplates, footnoteText, infoRows, labor35aTable, letterOf, letterParagraphs, RETURN_LINE_MAX, resultRows, returnLineTooLong, IBAN_MISSING_CLOSED_TEXT, IBAN_MISSING_TEXT, IBAN_MISSING_TITLE, ibanMissing, SENDER_MISSING_CLOSED_TEXT, SENDER_MISSING_TEXT, senderMissing, statementHeadRows } from '../letterView'
 import { rowCategory } from '../costTypeForm'
+import { areaText, costTypeSheet, perUnitText, showsCostTypeSheet } from '../costTypeSheet'
 import { UTILITY_LABELS, utilityResultText } from '../utilityPrepaymentForm'
 
 type Props = {
@@ -104,6 +105,13 @@ export default function Abrechnung({ settings, units, tenancies, reload, onNavig
   const { key, label, param, calendar, period, rules } = usePeriod()
   const { properties, property } = useProperty()
   const propertyId = property?.id
+  // Eigene Kostenarten des Zeitraums für die Aufstellung nach Kostenarten (gewerbliche Abrechnung): auch ohne Kosten eine Zeile.
+  const [sheetTypes, setSheetTypes] = useState<CostType[]>([])
+  useEffect(() => {
+    let alive = true
+    api<CostType[]>(withProperty(`/api/cost-types?period=${key}`, propertyId)).then((t) => { if (alive) setSheetTypes(t) }, () => { if (alive) setSheetTypes([]) })
+    return () => { alive = false }
+  }, [propertyId, key])
   // Vermieter, IBAN und Frist: am Objekt abweichend, sonst aus den Einstellungen (#92).
   const landlord = settings ? effectiveLandlord(property, settings) : null
   const toast = useToast()
@@ -1354,6 +1362,37 @@ export default function Abrechnung({ settings, units, tenancies, reload, onNavig
                   </tbody>
                 </Table>
               )}
+              {/* Gewerbliche Abrechnung (Anforderung 9): Aufteilung der Gesamtkosten nach Kostenarten wie im Formular des
+                  Vermieters, je Kostenart Gesamtkosten, Gesamteinheiten, Betrag pro Einheit, Ihre Einheiten, Ihr Anteil. */}
+              {showsCostTypeSheet(data?.objectAreaM2, st.rows, sheetTypes) && (() => {
+                const sheet = costTypeSheet({ rows: st.rows, costTypes: sheetTypes, objectAreaM2: data?.objectAreaM2 ?? null, unitAreaM2: letter?.premises?.areaM2 ?? units.find((u) => u.id === st.unitId)?.areaM2 ?? null })
+                return (
+                  <>
+                  <p><strong>Aufteilung der Gesamtkosten für Ihr Mietobjekt</strong></p>
+                  <Table className="print-compact" aria-label="Aufteilung der Gesamtkosten nach Kostenarten">
+                    <thead>
+                      <tr><th>Kostenart, Schlüssel</th><th className="num">Gesamt</th><th className="num">Einheiten</th><th className="num">je Einheit</th><th className="num">Ihre</th><th className="num">Ihr Anteil</th></tr>
+                    </thead>
+                    <tbody>
+                      {sheet.rows.map((r) => (
+                        <tr key={r.name}>
+                          <td>{softBreak(r.name)}{r.keyLabel && <div className="muted">{r.keyLabel}</div>}</td>
+                          <td className="num">{fmtEuro(r.totalCents)}</td>
+                          <td className="num">{areaText(r.unitsM2)}</td>
+                          <td className="num">{perUnitText(r.perUnitCents)}</td>
+                          <td className="num">{areaText(r.yourM2)}</td>
+                          <td className="num">{fmtEuro(r.shareCents)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr><td>Summe</td><td className="num">{fmtEuro(sheet.totalCents)}</td><td colSpan={3} /><td className="num">{fmtEuro(sheet.shareCents)}</td></tr>
+                    </tfoot>
+                  </Table>
+                  <p className="muted">Einheiten in m². Ihr Anteil ist der der Abrechnung oben; bei Ein- oder Auszug im Zeitraum oder einem anderen Schlüssel als der Fläche weicht er vom Betrag je Einheit × Ihre Einheiten ab.</p>
+                  </>
+                )
+              })()}
               {/* Der Ausweis nach § 7 Abs. 3 CO2KostAufG (Heizung PR 6) wird mitgedruckt. */}
               {/* Heizung PR 10: der Ausweis der eigenen Heizkostenabrechnung, vor dem CO₂-Block. */}
               {(data?.heating ?? []).map((h) => (h.self ? <SelfHeatingBlock key={`self:${h.plantId}:${h.period}`} self={h.self} tenancyId={st.tenancyId} plantName={h.plantName} /> : null))}
