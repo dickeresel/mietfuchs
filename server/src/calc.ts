@@ -6308,20 +6308,31 @@ export function computeSettlement(snapshot: Snapshot, options: SettlementOptions
     // in der übrigen Zeit hat; eine ganzjährig außerhalb liegende Einheit belastet die übrigen ja ebenso voll.
     // Dass die Kosten gleichmäßig über den Zeitraum anfallen, ist eine Auslegung (Hinweis `usage.changed`).
     // Ein Wechsel nur zwischen vermietet und selbstgenutzt ändert die Basis nicht und braucht keine Abschnitte.
-    const segmentsOf = (units: SnapshotUnit[]): Period[] | null => {
+    // `withArea` (gewerbliche Abrechnung, Flächenschlüssel): auch an jedem Flächenwechsel im Zeitraum schneiden; je
+    // Abschnitt gilt dann die Fläche an seinem ersten Tag (`areaAt`).
+    const areaAt = (u: SnapshotUnit, day: string): number => {
+      let area = u.areaM2 || 0
+      for (const c of u.areaChanges ?? []) if (c.from <= day) area = c.areaM2
+      return area
+    }
+    const segmentsOf = (units: SnapshotUnit[], withArea = false): Period[] | null => {
       const inside = (k: UnitUsage) => k !== 'ausgenommen'
       const cuts = new Set<string>()
       for (const u of units) {
         const sp = usageIn(u).spans
         for (let i = 1; i < sp.length; i++) if (inside((sp[i - 1] as UsageSpan).usage) !== inside((sp[i] as UsageSpan).usage)) cuts.add((sp[i] as UsageSpan).from)
+        if (withArea) for (const c of u.areaChanges ?? []) if (c.from > yFrom && c.from <= yTo) cuts.add(c.from)
       }
+      // Ein Flächenwechsel vor dem Zeitraum schneidet nicht, ändert aber die Fläche: dann ein Abschnitt über den ganzen
+      // Zeitraum, damit `areaAt` gilt und nicht die erste Stufe `areaM2`.
+      if (cuts.size === 0 && withArea && units.some((u) => (u.areaChanges ?? []).some((c) => c.from <= yFrom))) return [{ from: yFrom, to: yTo }]
       if (cuts.size === 0) return null
       const starts = [yFrom, ...[...cuts].sort()]
       return starts.map((from, i) => ({ from, to: i + 1 < starts.length ? dayBefore(starts[i + 1] as string) : yTo }))
     }
     // `fill` (#573, Einheiten-Schlüssel): Gewichte, die im Abschnitt zur Basis zählen, ohne dass ihre Einheit darin liegt
     // (die Zimmer außerhalb einer Wohnung, deren übrige Zimmer darin liegen); ihr Teil steht in `outside`.
-    const segmented = (segs: Period[], units: SnapshotUnit[], weight: (u: SnapshotUnit) => number, byDegree: boolean, amountRaw: number, partTenancies: TenancyWithUnit[],
+    const segmented = (segs: Period[], units: SnapshotUnit[], weight: (u: SnapshotUnit, seg: Period) => number, byDegree: boolean, amountRaw: number, partTenancies: TenancyWithUnit[],
       fill?: (members: SnapshotUnit[]) => SnapshotUnit[]) => {
       const days = (r: Period) => rangeOverlapDays(r.from, r.to, r.from, r.to)
       const measure = (r: Period): number => (byDegree && degreeTable && fullDegree > 0 ? degreeDayPermille([r], degreeTable) : days(r))
@@ -6337,13 +6348,13 @@ export function computeSettlement(snapshot: Snapshot, options: SettlementOptions
       for (const seg of segs) {
         const members = units.filter((u) => usageIn(u).spans.some((x) => x.usage !== 'ausgenommen' && cut(seg, x.from, x.to) !== null))
         const extra = fill ? fill(members) : []
-        const total = members.reduce((a, u) => a + weight(u), 0) + extra.reduce((a, u) => a + weight(u), 0)
+        const total = members.reduce((a, u) => a + weight(u, seg), 0) + extra.reduce((a, u) => a + weight(u, seg), 0)
         const segMeasure = measure(seg)
         if (!(total > 0) || !(segMeasure > 0)) continue
         const amount = amountRaw * (segMeasure / full)
         for (const u of extra) {
           const e = outside.get(u.id) ?? { unit: u, raw: 0 }
-          e.raw += amount * (weight(u) / total)
+          e.raw += amount * (weight(u, seg) / total)
           outside.set(u.id, e)
         }
         for (const t of partTenancies) {
@@ -6351,21 +6362,21 @@ export function computeSettlement(snapshot: Snapshot, options: SettlementOptions
           const o = cut(seg, t.start > yFrom ? t.start : yFrom, t.end !== null && t.end < yTo ? t.end : yTo)
           if (!o) continue
           const e = tenants.get(t.id) ?? { raw: 0, parts: [] }
-          e.raw += amount * (weight(t.unit) / total) * (measure(o) / segMeasure)
-          e.parts.push({ ...o, w: weight(t.unit), total })
+          e.raw += amount * (weight(t.unit, seg) / total) * (measure(o) / segMeasure)
+          e.parts.push({ ...o, w: weight(t.unit, seg), total })
           tenants.set(t.id, e)
         }
         for (const u of members) {
           const selfMeasure = usageIn(u).spans.filter((x) => x.usage === 'eigen')
             .reduce((a, x) => { const o = cut(seg, x.from, x.to); return a + (o ? measure(o) : 0) }, 0)
-          self += amount * (weight(u) / total) * (selfMeasure / segMeasure)
+          self += amount * (weight(u, seg) / total) * (selfMeasure / segMeasure)
         }
       }
       return { tenants, self, outside }
     }
     const partsText = (parts: { from: string, to: string, w: number, total: number }[], unitText: string) =>
       parts.map((x) => `${fmtNum(x.w)} von ${fmtNum(Math.round(x.total * 100) / 100)} ${unitText} ${formatDayRange(x.from, x.to)}`).join('; ')
-    const segs = ['area', 'units', 'external'].includes(item.key) ? segmentsOf(b.basisUnits) : null
+    const segs = ['area', 'units', 'external'].includes(item.key) ? segmentsOf(b.basisUnits, item.key === 'area') : null
     // Die Tagesgewichte der Nutzung nach **demselben Maß** wie der Mieter der Position (Nachprüfung M-b): bei „nur
     // Heizung“ nach Gradtagen (§ 9b Abs. 2), sonst nach Tagen. Ohne Wechsel genau `selfShare`/`outsideShare`, also 1 oder 0.
     const byDegreeShare = (u: SnapshotUnit, k: UnitUsage): number => {
@@ -6392,7 +6403,7 @@ export function computeSettlement(snapshot: Snapshot, options: SettlementOptions
       const targets: { t: TenancyWithUnit; raw: number; basisText: string }[] = []
       let selfRaw = 0
       const outsideRooms: { unit: SnapshotUnit; raw: number }[] = []
-      const unitSegs = key === 'persons' ? null : segmentsOf(basis.basisUnits)
+      const unitSegs = key === 'persons' ? null : segmentsOf(basis.basisUnits, key === 'area')
       const degreeSelf = degreeTable !== null && fullDegree > 0 && basis.selfUnits.some((u) => usageIn(u).phased)
       if (key === 'area' && !(basis.basisArea > 0)) {
         return { noBasis: basis === fullBasis ? 'für keine Wohnung ist eine Wohnfläche hinterlegt' : 'für keine teilnehmende Wohnung ist eine Wohnfläche hinterlegt' }
@@ -6401,7 +6412,7 @@ export function computeSettlement(snapshot: Snapshot, options: SettlementOptions
       } else if (key === 'persons' && !(basis.occupantPersonDays > 0) && basis.partTenancies.length > 0) {
         return { noBasis: 'für die vermieteten Wohnungen sind keine Personen hinterlegt' }
       } else if (key === 'area' && basis.basisArea > 0 && unitSegs) {
-        const r = segmented(unitSegs, basis.basisUnits, (u) => u.areaM2 || 0, true, amountRaw, basis.partTenancies)
+        const r = segmented(unitSegs, basis.basisUnits, (u, seg) => areaAt(u, seg.from), true, amountRaw, basis.partTenancies)
         for (const t of basis.partTenancies) {
           const e = r.tenants.get(t.id)
           if (e) targets.push({ t, raw: e.raw, basisText: partsText(e.parts, 'm²') })

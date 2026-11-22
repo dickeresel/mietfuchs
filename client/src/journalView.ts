@@ -77,6 +77,7 @@ const TABLE_LABELS: Record<string, string> = {
   cost_item_contract: 'Umlagevereinbarung',
   cost_sources: 'Aufgeteilte Rechnung',
   cost_types: 'Kostenart',
+  unit_area_changes: 'Flächenwechsel',
   tenancy_utility_prepayments: 'Vorauszahlung je Sparte',
   cost_item_meter_rest: 'Bezugszähler und Rest',
   cost_item_meter_rest_units: 'Empfänger des Rests',

@@ -14,6 +14,10 @@ Alle nennenswerten Änderungen an Mietfuchs. Das Format orientiert sich an
 
 ### Hinzugefügt
 
+- Flächenwechsel im Jahr: An einer Einheit lässt sich eine Erhöhung oder Minderung der Fläche ab einem Tag eintragen
+  (Stammdaten, „Flächenwechsel“, Schritt 0112). Nach Fläche verteilte Kosten werden dann je Abschnitt mit der dort
+  geltenden Fläche geteilt, gleichmäßig nach Tagen; die Basis nennt jeden Abschnitt. Druck, Steuer, CO₂ und Mieterhöhung
+  lesen weiter die Wohnfläche der Einheit. Nicht an Zimmern einer Wohnung. Ohne Flächenwechsel ändert sich nichts.
 - Gewerblich vermietet: Ein Mietverhältnis lässt sich als gewerblich kennzeichnen (Stammdaten, Schritte 0110/0111).
   Dann entfallen Regeln, die nur für Wohnraum gelten: der Hinweis zur Höchstgrenze der Kaution (§ 551 BGB), die
   Mieterhöhung nach §§ 557 ff. BGB (gesperrt mit Satz) und ihre Einträge in „Demnächst fällig“, der Hinweis zur

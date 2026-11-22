@@ -180,3 +180,43 @@ test('Sparten: Anteile über der Gesamtvorauszahlung ergeben eine Warnung und ne
   const sonstige = s.statements[0]?.utilities?.find((l) => l.kind === 'sonstige')
   assert.ok((sonstige?.prepaymentCents ?? 0) < 0)
 })
+
+// ---------- Flächenwechsel im Jahr (Anforderung 6) ----------
+// Zwei Einheiten mit je 100 m²; B wächst ab 01.07.2025 auf 200 m². 3.650,00 € nach Fläche, gleichmäßig über 365 Tage:
+// 01.01.–30.06. (181 Tage, 1.810,00 €) je zur Hälfte, 01.07.–31.12. (184 Tage, 1.840,00 €) im Verhältnis 100 : 200.
+// A: 905,00 + 613,33… = 1.518,33 €, B: 905,00 + 1.226,66… = 2.131,67 €.
+test('Flächenwechsel: verteilt je Abschnitt mit der Fläche des Abschnitts, Summe genau die Rechnung', () => {
+  const ta: SnapshotTenancy = { ...tenancy, id: 't-a', unitId: 'a', tenantName: 'A', prepayments: [] }
+  const tb: SnapshotTenancy = { ...tenancy, id: 't-b', unitId: 'b', tenantName: 'B', prepayments: [] }
+  const src: SnapshotSource = {
+    units: [unit('a', 100), { ...unit('b', 100), areaChanges: [{ from: '2025-07-01', areaM2: 200 }] }],
+    tenancies: [ta, tb], costItems: [item('x', 'Gebäudereinigung', 'Reinigung', 365000)], meters: [], readings: [], payments: [], closedSettlements: [],
+  }
+  const s = computeSettlement({ ...snapshotOf(src, 2025), property: property() })
+  const share = (id: string) => s.statements.find((st) => st.tenancyId === id)?.totalShareCents
+  assert.deepEqual([share('t-a'), share('t-b')], [151833, 213167])
+  assert.equal(s.landlord.totalCents, 0)
+  const text = s.statements.find((st) => st.tenancyId === 't-b')?.rows[0]?.basisText ?? ''
+  assert.match(text, /100 von 200 m² 01\.01\.–30\.06\.2025/)
+  assert.match(text, /200 von 300 m² 01\.07\.–31\.12\.2025/)
+})
+
+test('Flächenwechsel: ohne Wechsel im Zeitraum dieselben Zahlen wie ohne Staffel', () => {
+  const ta: SnapshotTenancy = { ...tenancy, id: 't-a', unitId: 'a', prepayments: [] }
+  const tb: SnapshotTenancy = { ...tenancy, id: 't-b', unitId: 'b', prepayments: [] }
+  const base: SnapshotSource = { units: [unit('a', 100), unit('b', 100)], tenancies: [ta, tb], costItems: [item('x', 'Gebäudereinigung', 'Reinigung', 365000)], meters: [], readings: [], payments: [], closedSettlements: [] }
+  const later: SnapshotSource = { ...base, units: [unit('a', 100), { ...unit('b', 100), areaChanges: [{ from: '2026-03-01', areaM2: 200 }] }] }
+  const shares = (src: SnapshotSource) => computeSettlement({ ...snapshotOf(src, 2025), property: property() }).statements.map((st) => st.totalShareCents)
+  assert.deepEqual(shares(later), shares(base))
+})
+
+test('Flächenwechsel vor dem Zeitraum: die neue Fläche gilt den ganzen Zeitraum', () => {
+  const ta: SnapshotTenancy = { ...tenancy, id: 't-a', unitId: 'a', prepayments: [] }
+  const tb: SnapshotTenancy = { ...tenancy, id: 't-b', unitId: 'b', prepayments: [] }
+  const src: SnapshotSource = {
+    units: [unit('a', 100), { ...unit('b', 100), areaChanges: [{ from: '2024-07-01', areaM2: 200 }] }],
+    tenancies: [ta, tb], costItems: [item('x', 'Gebäudereinigung', 'Reinigung', 365000)], meters: [], readings: [], payments: [], closedSettlements: [],
+  }
+  const s = computeSettlement({ ...snapshotOf(src, 2025), property: property() })
+  assert.deepEqual(s.statements.map((st) => st.totalShareCents), [121667, 243333])
+})

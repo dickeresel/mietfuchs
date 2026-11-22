@@ -434,3 +434,16 @@ describe('Objekt einer Wohnung (#180)', () => {
     expect(unitMoveQuestion({ name: 'EG', from: 'objekt-1', to: 'objekt-2', tenancies: 0 }, props)?.message).not.toMatch(/Mietverhältnis/)
   })
 })
+
+test('Flächenwechsel: Tag und Fläche je Zeile, deutsch geschrieben, sortiert; leer heißt keine Staffel', () => {
+  const base = { ...EMPTY_UNIT_FORM, name: 'Halle', areaM2: '1000' }
+  const r = buildUnitBody({ ...base, areaChanges: [{ from: '2025-10-01', area: '1.200,5' }, { from: '2025-04-01', area: '900' }] })
+  if (!('body' in r)) return expect.fail('soll gelingen')
+  expect(r.body.areaChanges).toEqual([{ from: '2025-04-01', areaM2: 900 }, { from: '2025-10-01', areaM2: 1200.5 }])
+  const leer = buildUnitBody(base)
+  if (!('body' in leer)) return expect.fail('soll gelingen')
+  expect(leer.body.areaChanges).toBeNull()
+  const falsch = buildUnitBody({ ...base, areaChanges: [{ from: '', area: '5' }, { from: '2025-01-01', area: 'viel' }] })
+  if (!('problems' in falsch)) return expect.fail('soll scheitern')
+  expect(falsch.problems.map((p) => p.field)).toEqual(['areaChange.0', 'areaChange.1'])
+})

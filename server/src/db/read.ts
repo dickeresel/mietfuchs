@@ -29,7 +29,7 @@ import { frozenSettlementOf, type FrozenItemSelfUse, type SnapshotSource } from 
 import type { Executor } from './client.ts'
 import { deepFreeze, stockMarkOf } from './stockCache.ts'
 import {
-  aiSlots, baseRents, closedHeatingSettlements, co2Refunds, co2Statements, co2TenantReliefs, degreeDayValues, fuelCarryFrozen, fuelDeliveries, fuelDeliveryParts, heatingPeriods, closedSettlements, costItemAmounts, costItemContract, costItemMeterRest, costItemMeterRestBehind, costItemMeterRestSubs, costItemMeterRestUnits, costItemParticipants, costItemSelfAmounts, costItemShares, costItems, depositEntries, unitLocalRents, unitNoConnection, unitUsageChanges, meters, payments,
+  aiSlots, baseRents, closedHeatingSettlements, co2Refunds, co2Statements, co2TenantReliefs, degreeDayValues, fuelCarryFrozen, fuelDeliveries, fuelDeliveryParts, heatingPeriods, closedSettlements, costItemAmounts, costItemContract, costItemMeterRest, costItemMeterRestBehind, costItemMeterRestSubs, costItemMeterRestUnits, costItemParticipants, costItemSelfAmounts, costItemShares, costItems, depositEntries, unitLocalRents, unitNoConnection, unitUsageChanges, unitAreaChanges, meters, payments,
   flatRates, tenancyDirectCharges, tenancyUtilityPrepayments, heatingPeriodChanges, heatingPlants, heatingPlantUnits, heatingPrepaymentOverrides, heatingPrepayments, heatingSelfSpans, heatingSeparateSpans, heatingServiceValues, periodChanges, personHistory, prepaymentOverrides, prepayments, properties, readings, settings, tenancies, units,
   interimReadingGaps, heatingEstimates, heatingMonthlyInfo,
 } from './schema.ts'
@@ -174,6 +174,8 @@ export async function readUnits(db: Executor): Promise<Unit[]> {
   const localRents = groupBy(localRentRows, (r) => r.unitId, (r) => ({ from: r.from, monthlyCents: r.monthlyCents, source: r.source, sourceDate: r.sourceDate }))
   // Die Nutzungswechsel (#259), nach Datum; nur, wenn es welche gibt, wie bei den Anschlüssen.
   const usageRows = await db.select().from(unitUsageChanges).orderBy(unitUsageChanges.from)
+  const areaRows = await db.select().from(unitAreaChanges).orderBy(unitAreaChanges.from)
+  const areaChanges = groupBy(areaRows, (r) => r.unitId, (r) => ({ from: r.from, areaM2: r.areaM2 }))
   const usageChanges = groupBy(usageRows, (r) => r.unitId, (r) => ({ from: r.from, usage: r.usage }))
   return rows.map((u) => ({
     id: u.id,
@@ -190,6 +192,8 @@ export async function readUnits(db: Executor): Promise<Unit[]> {
     ...(noConnection.has(u.id) ? { noConnection: noConnection.get(u.id) } : {}),
     ...(localRents.has(u.id) ? { localRents: localRents.get(u.id) } : {}),
     ...(usageChanges.has(u.id) ? { usageChanges: usageChanges.get(u.id) } : {}),
+    // Flächenwechsel (gewerbliche Abrechnung), nur mit Einträgen.
+    ...(areaChanges.has(u.id) ? { areaChanges: areaChanges.get(u.id) } : {}),
     rooms: orUndefined(u.rooms),
     // Nur mit Wert (#573): Die db.json kennt keine Zimmer.
     ...(u.parentUnitId === null ? {} : { parentUnitId: u.parentUnitId }),

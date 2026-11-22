@@ -4,7 +4,7 @@ import type { CostItem, CostModel, HeatingModel, SelfSupplyKind, DepositEntry, D
 import { servesUnit } from '../../../shared/heatingPeriod.ts'
 import { DEPOSIT_FORM_LABELS, DEPOSIT_STATUS_LABELS, METER_TYPE_LABELS, UNIT_USAGE_LABELS, usageOf } from '../types'
 import { everRented } from '../../../shared/unitUsage.ts'
-import { EMPTY_UNIT_FORM, buildUnitBody, usageChangeField, usesSelf, connectionSummary, connectionTypes, setConnected, unitDeleteBlocked, unitDeleteMessage, unitToForm, flatIdsWithRooms, parentUnitOptions, roomCountOf, unitMoveLock, unitMoveQuestion, unitPropertyOptions, type UnitField, type UnitForm } from '../unitForm'
+import { EMPTY_UNIT_FORM, buildUnitBody, usageChangeField, areaChangeField, usesSelf, connectionSummary, connectionTypes, setConnected, unitDeleteBlocked, unitDeleteMessage, unitToForm, flatIdsWithRooms, parentUnitOptions, roomCountOf, unitMoveLock, unitMoveQuestion, unitPropertyOptions, type UnitField, type UnitForm } from '../unitForm'
 import { api, errorText, fmtDate, fmtEuro, parseEuro } from '../api'
 import { separateHeatingFor, separateHeatingPlant } from '../heatingSettlementView'
 import Drawer from '../components/Drawer'
@@ -1231,6 +1231,25 @@ export default function Stammdaten({ units, tenancies, settings, reload, focus, 
               <small className="muted">Ziehen Sie ein oder vermieten Sie die Wohnung zum ersten Mal, tragen Sie den Tag hier ein. Die Nutzung oben gilt bis zum ersten Wechsel; ein Mietverhältnis zählt nur in der vermieteten Zeit.</small>
               <button className="btn small secondary field-add" onClick={() => setUnitForm({ ...unitForm, usageChanges: [...unitForm.usageChanges, { from: '', usage: unitForm.usage === 'vermietet' ? 'eigen' : 'vermietet' }] })}>+ Wechsel ab Datum …</button>
             </div>
+            {/* Gewerbliche Abrechnung: Erhöhung oder Minderung der Fläche im Jahr; nicht an Zimmern einer Wohnung. */}
+            {!unitForm.parentUnitId && (
+              <div className="field-group">
+                <div className="field-group-label">Flächenwechsel</div>
+                {unitForm.areaChanges.map((c, i) => (
+                  <div className="staffel-row" key={i}>
+                    <Field label="Neue Fläche ab" required {...unitErrors.field(areaChangeField(i))}>
+                      <input type="date" value={c.from} onChange={(e) => setUnitForm({ ...unitForm, areaChanges: unitForm.areaChanges.map((x, k) => (k === i ? { ...x, from: e.target.value } : x)) })} />
+                    </Field>
+                    <Field label="Fläche m²">
+                      <input inputMode="decimal" value={c.area} placeholder="z. B. 1.200,5" onChange={(e) => setUnitForm({ ...unitForm, areaChanges: unitForm.areaChanges.map((x, k) => (k === i ? { ...x, area: e.target.value } : x)) })} />
+                    </Field>
+                    <button className="icon-btn danger" title="Zeile entfernen" aria-label="Zeile entfernen" onClick={() => { unitErrors.clear(); setUnitForm({ ...unitForm, areaChanges: unitForm.areaChanges.filter((_, k) => k !== i) }) }}>🗑</button>
+                  </div>
+                ))}
+                <small className="muted">Für eine Erhöhung oder Minderung der Mietfläche im Jahr. Die Wohnfläche oben gilt bis zum ersten Wechsel; nach Fläche verteilte Kosten werden je Abschnitt mit der dann geltenden Fläche geteilt.</small>
+                <button className="btn small secondary field-add" onClick={() => setUnitForm({ ...unitForm, areaChanges: [...unitForm.areaChanges, { from: '', area: '' }] })}>+ Flächenwechsel ab Datum …</button>
+              </div>
+            )}
             {usesSelf(unitForm) && (
               <Field label="Personen im eigenen Haushalt" hint="Nur für den Personenschlüssel; ohne Angabe bleibt die eigene Wohnung dort unberücksichtigt." {...unitErrors.field('selfPersons')}>
                 <input inputMode="numeric" value={unitForm.selfPersons} onChange={(e) => setUnitForm({ ...unitForm, selfPersons: e.target.value })} placeholder="z. B. 2" />
