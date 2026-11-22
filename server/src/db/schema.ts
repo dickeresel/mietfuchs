@@ -233,6 +233,9 @@ export const properties = sqliteTable(
     // Kappungsgrenzen-Verordnung nach § 558 Abs. 3 Satz 2, 3 BGB (#191): ja (15 %), nein (20 %), NULL unbekannt (rechnet mit
     // 15 %). Getrennt von `tight_market`. Bedingung im zweiten Schritt.
     rentCapReduced: integer('rent_cap_reduced', { mode: 'boolean' }),
+    // Gesamtfläche des Objekts in m² (gewerbliche Abrechnung, „Gesamteinheiten“); NULL heißt nicht eingetragen. Verteilt
+    // wird weiter über die Einheiten. Bedingung im zweiten Schritt.
+    totalAreaM2: real('total_area_m2'),
   },
   () => [
     oneOf('properties_kind_known', 'kind', PROPERTY_KINDS),
@@ -258,6 +261,8 @@ export const properties = sqliteTable(
     isoDate('properties_completed_on_valid', 'completed_on'),
     // § 82b Abs. 2 EStDV (#262): ein Jahr, das es geben kann, wie `cost_items_tax_year_valid`.
     check('properties_spread_rest_year_valid', sql.raw('"spread_rest_year" IS NULL OR "spread_rest_year" BETWEEN 1900 AND 2200')),
+    // Gesamtfläche des Objekts: leer oder über 0 (Schritt 0106, getrennt von der Spalte wie 0103/0104).
+    check('properties_total_area_positive', sql.raw('"total_area_m2" IS NULL OR "total_area_m2" > 0')),
   ],
 )
 
@@ -1212,6 +1217,27 @@ export const costSources = sqliteTable(
   () => [oneOf('cost_sources_rule_known', 'rule', SOURCE_RULES)],
 )
 
+// Eigene Kostenarten je Objekt und Abrechnungszeitraum (gewerbliche Abrechnung): ein Name für Abrechnung und Export
+// (etwa „Sicherheitsdienst“) und die Grundart aus der Liste von Mietfuchs (`base_category`, meist „Sonstige
+// Betriebskosten“), an der alle Regeln hängen (Heizung, Strom, Wasser, Anlage V). Die Positionen verweisen über
+// `cost_items.cost_type_id`; ihre Kostenart ist die Grundart. Fällt mit dem Objekt (es wird nur leer gelöscht).
+export const costTypes = sqliteTable(
+  'cost_types',
+  {
+    id: text('id').primaryKey().notNull(),
+    propertyId: text('property_id').notNull().references(() => properties.id, { onDelete: 'cascade' }),
+    period: text('period').$type<PeriodKey>().notNull(),
+    name: text('name').notNull(),
+    baseCategory: text('base_category').notNull(),
+    // Reihenfolge in der Liste des Zeitraums, aufsteigend.
+    position: integer('position').notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex('cost_types_property_period_name_idx').on(t.propertyId, t.period, t.name),
+    check('cost_types_name_valid', sql.raw('length(trim("name")) BETWEEN 1 AND 80 AND "name" = trim("name")')),
+  ],
+)
+
 export const costItems = sqliteTable(
   'cost_items',
   {
@@ -1234,6 +1260,9 @@ export const costItems = sqliteTable(
     // `SET NULL` erhält genau dieses Verhalten, denn `null` trifft in der Nachschlagetabelle
     // ebenso ins Leere wie eine unbekannte Kennung.
     directUnitId: text('direct_unit_id').references(() => units.id, { onDelete: 'set null' }),
+    // Die eigene Kostenart (`cost_types`), NULL heißt keine. `RESTRICT`: Eine Kostenart mit Positionen lässt sich nicht
+    // löschen (der Server sagt es vorher mit Satz). Objekt und Zeitraum gleich denen der Position prüft der Server.
+    costTypeId: text('cost_type_id').references((): AnySQLiteColumn => costTypes.id, { onDelete: 'restrict' }),
     meterType: text('meter_type', { enum: METER_TYPES }),
     labor35aCents: integer('labor_35a_cents'),
     invoiceFile: text('invoice_file'),

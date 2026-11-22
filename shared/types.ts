@@ -82,6 +82,10 @@ export type Property = {
   // nein (20 %), `null` oder fehlend unbekannt; die Rechnung nimmt dann sicher 15 % (Entwurf R12). Getrennt von
   // `tightMarket`, denn das ist eine andere Verordnung. Mietkonto, Abrechnung und Steuer lesen es nie.
   rentCapReduced?: boolean | null
+  // Die Gesamtfläche des Objekts in m², wie sie eine gewerbliche Abrechnung als „Gesamteinheiten“ nennt. Fehlend oder `null`
+  // heißt nicht eingetragen; dann bleibt alles wie bisher. Verteilt wird weiter über die Flächen der Einheiten; weicht deren
+  // Summe ab, sagt es ein Hinweis (`property.area-mismatch`). Die Abrechnung friert sie als `Settlement.objectAreaM2` ein.
+  totalAreaM2?: number | null
 }
 
 export type Unit = {
@@ -807,6 +811,9 @@ export type CostItem = {
   // (PR 3): fehlt, wenn nicht gesetzt.
   heatingTarget?: HeatingTarget
   category: string
+  // Die eigene Kostenart (`CostType`), zu der die Position gehört; fehlend oder `null` heißt keine. Dann ist `category`
+  // die Grundart der Kostenart.
+  costTypeId?: string | null
   description: string
   vendor?: string
   amountCents: number
@@ -870,6 +877,12 @@ export type CostItem = {
   // dieselbe Wahl (`syncSourceSpread` in server/src/db/repository.ts). Die Abrechnung liest es nie.
   spreadYears?: SpreadYears
 }
+
+// Eine eigene Kostenart je Objekt und Abrechnungszeitraum (gewerbliche Abrechnung): `name` steht auf Abrechnung und im
+// Export, `baseCategory` ist eine Kostenart aus der Liste von Mietfuchs (shared/categories.ts), nach der gerechnet wird.
+// `itemCount`: Zahl der Positionen, die auf sie verweisen (nur gelesen; mit Positionen lässt sie sich nicht löschen und
+// ihre Grundart nicht ändern).
+export type CostType = { id: string; propertyId: string; period: PeriodKey; name: string; baseCategory: string; position: number; itemCount: number }
 
 // Die Jahre einer Verteilung nach § 82b EStDV (#262). „1 Jahr“ ist keine Verteilung und hat keinen eigenen Wert.
 export type SpreadYears = 2 | 3 | 4 | 5
@@ -1279,6 +1292,9 @@ export type SettlementRow = {
   // deshalb optional.
   key?: CostKey
   keyLabel: string
+  // Der Name der eigenen Kostenart der Position, wie er zur Zeit der Berechnung hieß (eingefroren mit dem Abschluss);
+  // fehlt ohne eigene Kostenart. `category` bleibt die Grundart.
+  costType?: string
   basisText?: string
   shareCents: number
   // §35a-Lohnanteil dieser Zeile. Auch ihn gibt es nur in den Zeilen der Mieter.
@@ -1496,6 +1512,9 @@ export type Settlement = {
   // Entwurf 5.7, 9.5). Optional, weil eine vorher abgeschlossene Abrechnung es nicht kennt und eine
   // Abrechnung ohne Heizanlage es nicht hat.
   heating?: HeatingStatement[]
+  // Die Gesamtfläche des Objekts (`Property.totalAreaM2`) zur Zeit der Berechnung, für „Betrag pro m²“ im Export. Fehlt
+  // ohne Angabe am Objekt und bei einer vorher abgeschlossenen Abrechnung; mit dem Abschluss friert sie ein.
+  objectAreaM2?: number
   // gesetzt, wenn die Abrechnung abgeschlossen (eingefroren) ist
   closed: { closedAt: string; sentAt: string | null } | null
   // Nur bei einer abgeschlossenen Abrechnung (#56): Was die heutige Berechnung je Mieter anders
